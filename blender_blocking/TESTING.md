@@ -121,6 +121,30 @@ Run Blender in background mode with test script:
 blender --background --python blender_blocking/test_integration.py
 ```
 
+### Blender API Compatibility Tests
+
+**CRITICAL**: Run this test to verify Blender API compatibility, especially after Blender version updates.
+
+This test catches issues like boolean solver enum changes (e.g., Blender 5.0 removing 'FAST' solver).
+
+```bash
+blender --background --python blender_blocking/test_blender_boolean.py
+```
+
+Or from within Blender's Python console:
+```python
+import sys
+sys.path.insert(0, "/path/to/crew/sculptor")
+exec(open("/path/to/crew/sculptor/blender_blocking/test_blender_boolean.py").read())
+```
+
+This test verifies:
+- Boolean modifier solver enums are valid
+- Boolean operations can be applied
+- MeshJoiner class works correctly with current Blender version
+
+**Why this matters**: Blender API changes between versions. This test caught a production bug where 'FAST' boolean solver was removed in Blender 5.0, causing TypeError on first user attempt.
+
 ### Example Workflow Tests
 
 #### Test with Sample Images
@@ -248,6 +272,7 @@ Current tests cover:
 - ✅ 3D primitive creation
 - ✅ Mesh joining
 - ✅ Scene setup
+- ✅ Blender API compatibility (boolean solvers, modifier operations)
 
 Not yet covered:
 - ⚠️ Advanced shape matching

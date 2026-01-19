@@ -180,7 +180,7 @@ class MeshJoiner:
             modifier = base_obj.modifiers.new(name=f"Union_{i}", type='BOOLEAN')
             modifier.operation = 'UNION'
             modifier.object = obj
-            modifier.solver = 'FAST'
+            modifier.solver = 'EXACT'  # Blender 5.0+: 'FAST' removed, use 'EXACT' for precision
 
             # Apply the modifier
             bpy.context.view_layer.objects.active = base_obj
