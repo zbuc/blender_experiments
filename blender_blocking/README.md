@@ -6,15 +6,20 @@ Automated tool for creating rough 3D blockouts from orthogonal reference images 
 
 ## Quick Start
 
-New to this tool? Start here: **[QUICKSTART.md](QUICKSTART.md)**
+**New users start here:**
 
-Get running in 5 minutes with step-by-step instructions.
+1. **[BLENDER_SETUP.md](BLENDER_SETUP.md)** - Configure Blender's Python environment (one-time setup)
+2. **[QUICKSTART.md](QUICKSTART.md)** - 5-minute guide to your first blockout
+
+Already configured Blender? Jump straight to the [QUICKSTART](QUICKSTART.md).
 
 ## Documentation
 
+- **[BLENDER_SETUP.md](BLENDER_SETUP.md)** - Blender Python configuration guide ⭐ Start here
 - **[QUICKSTART.md](QUICKSTART.md)** - Get started in minutes
 - **[INTEGRATION.md](INTEGRATION.md)** - Detailed API and usage guide
 - **[TESTING.md](TESTING.md)** - Testing instructions and troubleshooting
+- **[E2E_VALIDATION_SUMMARY.md](E2E_VALIDATION_SUMMARY.md)** - Validation framework details
 
 ## What It Does
 
@@ -54,12 +59,14 @@ workflow = example_workflow_with_images(
 ```
 blender_blocking/
 ├── README.md                   # This file
-├── QUICKSTART.md               # Start here!
-├── INTEGRATION.md              # Detailed guide
+├── BLENDER_SETUP.md            # ⭐ Blender Python setup guide
+├── QUICKSTART.md               # Quick start guide
+├── INTEGRATION.md              # Detailed API guide
 ├── TESTING.md                  # Testing guide
 ├── main_integration.py         # Main workflow
 ├── create_test_images.py       # Test image generator
 ├── test_integration.py         # Test suite
+├── test_e2e_validation.py      # E2E validation with IoU
 ├── requirements.txt            # Dependencies
 ├── primitives/                 # Blender primitive spawning
 │   └── primitives.py

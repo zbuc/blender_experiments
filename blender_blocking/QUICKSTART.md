@@ -7,7 +7,25 @@ Get started with the Blender automated blocking tool in minutes.
 - Blender 3.0 or later
 - Python 3.8+
 
-## Step 1: Install Python Dependencies
+## Important: Blender Python Setup
+
+**Before you start**, you need to configure Blender's Python to access the tool's dependencies.
+
+👉 **See [BLENDER_SETUP.md](BLENDER_SETUP.md) for complete setup instructions**
+
+**Quick option (Recommended):** Install dependencies directly into Blender's Python:
+
+```bash
+# macOS (adjust version as needed)
+/Applications/Blender.app/Contents/Resources/4.0/python/bin/python3.11 -m pip install numpy opencv-python Pillow scipy
+
+# Find your Blender Python path: Open Blender → Python Console → Run:
+# import sys; print(sys.executable)
+```
+
+See BLENDER_SETUP.md for other methods (venv integration, PYTHONPATH, startup scripts).
+
+## Step 1: Install Python Dependencies (For Testing Outside Blender)
 
 From the `blender_blocking` directory:
 
@@ -125,11 +143,15 @@ mesh = workflow.run_full_workflow(num_slices=8)
 
 ## Troubleshooting
 
-### "No module named numpy"
-Install dependencies in Blender's Python:
-```bash
-# Find Blender's Python
-/Applications/Blender.app/Contents/Resources/3.6/python/bin/python3.10 -m pip install numpy opencv-python Pillow scipy
+### "No module named numpy" or dependency errors
+
+See [BLENDER_SETUP.md](BLENDER_SETUP.md) for complete Blender Python configuration guide with multiple setup options.
+
+**Quick fix:**
+```python
+# In Blender, add your venv to path before importing
+import sys
+sys.path.insert(0, "/path/to/blender_blocking/venv/lib/python3.X/site-packages")
 ```
 
 ### "No shapes detected"
@@ -141,12 +163,16 @@ Install dependencies in Blender's Python:
 - Check that your images have clear silhouettes
 
 ### Import errors
+
 Make sure you use the correct path in `sys.path.insert(0, "...")` - it should point to the directory containing `blender_blocking/`
+
+For persistent setup across Blender sessions, see the startup script option in [BLENDER_SETUP.md](BLENDER_SETUP.md)
 
 ## Next Steps
 
-- See **INTEGRATION.md** for detailed API documentation
-- See **TESTING.md** for comprehensive testing guide
+- See **[BLENDER_SETUP.md](BLENDER_SETUP.md)** for Blender Python configuration options
+- See **[INTEGRATION.md](INTEGRATION.md)** for detailed API documentation
+- See **[TESTING.md](TESTING.md)** for comprehensive testing guide
 - Experiment with different reference images
 - Adjust `num_slices` for your needs
 
