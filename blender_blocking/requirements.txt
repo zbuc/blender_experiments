@@ -1,0 +1,14 @@
+# Python dependencies for Blender Automated Blocking Tool
+
+# Core dependencies
+numpy>=1.20.0
+opencv-python>=4.5.0
+Pillow>=8.0.0
+scipy>=1.7.0
+
+# Blender Python API (bpy)
+# Note: bpy comes bundled with Blender and cannot be installed via pip in standard Python
+# This tool must be run within Blender's Python environment
+
+# Installation for Blender's Python:
+# /Applications/Blender.app/Contents/Resources/3.6/python/bin/python3.10 -m pip install -r requirements.txt
