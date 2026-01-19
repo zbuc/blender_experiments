@@ -19,6 +19,8 @@ Already configured Blender? Jump straight to the [QUICKSTART](QUICKSTART.md).
 - **[QUICKSTART.md](QUICKSTART.md)** - Get started in minutes
 - **[INTEGRATION.md](INTEGRATION.md)** - Detailed API and usage guide
 - **[TESTING.md](TESTING.md)** - Testing instructions and troubleshooting
+- **[CI_CD.md](CI_CD.md)** - CI/CD testing with real Blender (GitHub Actions, Docker)
+- **[AGENTS.md](AGENTS.md)** - Quality gates for agents/crews (pre-commit, testing requirements)
 - **[E2E_VALIDATION_SUMMARY.md](E2E_VALIDATION_SUMMARY.md)** - Validation framework details
 
 ## What It Does
@@ -63,8 +65,12 @@ blender_blocking/
 ├── QUICKSTART.md               # Quick start guide
 ├── INTEGRATION.md              # Detailed API guide
 ├── TESTING.md                  # Testing guide
+├── CI_CD.md                    # CI/CD guide (GitHub Actions, Docker)
 ├── main_integration.py         # Main workflow
 ├── create_test_images.py       # Test image generator
+├── verify_setup.py             # Dependency verification
+├── test_runner.py              # Main CI/CD test runner
+├── test_blender_boolean.py     # Blender API compatibility tests
 ├── test_integration.py         # Test suite
 ├── test_e2e_validation.py      # E2E validation with IoU
 ├── requirements.txt            # Dependencies
@@ -77,7 +83,10 @@ blender_blocking/
 └── integration/                # Integration modules
     ├── image_processing/       # Image loading & processing
     ├── shape_matching/         # Contour analysis
-    └── blender_ops/            # Scene setup & mesh generation
+    └── blender_ops/            # Scene setup, rendering, mesh generation
+
+.github/workflows/
+└── blender-tests.yml           # GitHub Actions CI/CD workflow
 ```
 
 ## Requirements
@@ -87,6 +96,54 @@ blender_blocking/
 - Dependencies: numpy, opencv-python, Pillow, scipy
 
 See [QUICKSTART.md](QUICKSTART.md) for installation instructions.
+
+## Testing
+
+### Running Tests Locally
+
+**All tests must run in Blender** to validate actual Blender API usage:
+
+```bash
+# Full test suite
+blender --background --python test_runner.py
+
+# Quick tests (for pre-commit)
+blender --background --python test_runner.py -- --quick
+
+# Verbose output
+blender --background --python test_runner.py -- --verbose
+```
+
+### Test Suite
+
+The test runner executes 5 test suites:
+1. **Boolean Solver Compatibility** - Validates Blender API enums
+2. **MeshJoiner Integration** - Tests mesh joining with actual Blender operations
+3. **Full Workflow** - End-to-end procedural generation
+4. **E2E Validation** - Complete pipeline with IoU comparison (reference → 3D → render → compare)
+5. **Dependency Check** - Verifies all packages installed correctly
+
+### CI/CD Integration
+
+See **[CI_CD.md](CI_CD.md)** for:
+- GitHub Actions workflow example
+- GitLab CI configuration
+- Docker-based testing with Blender containers
+- Multi-version testing strategy (Blender 4.2 LTS, 5.0)
+
+### For Agents/Automated Workflows
+
+**Pre-commit validation:**
+```bash
+blender --background --python test_runner.py -- --quick
+```
+
+**Quality gates before merge:**
+- All tests pass in Blender 5.0: `blender --background --python test_runner.py`
+- All tests pass in Blender 4.2 (LTS)
+- Exit code 0 = pass, 1 = fail, 2 = runner error
+
+See [TESTING.md](TESTING.md) for detailed testing instructions.
 
 ## Development
 
