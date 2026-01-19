@@ -66,14 +66,18 @@ blender_blocking/
 ├── INTEGRATION.md              # Detailed API guide
 ├── TESTING.md                  # Testing guide
 ├── CI_CD.md                    # CI/CD guide (GitHub Actions, Docker)
+├── AGENTS.md                   # Agent quality gates & testing requirements
 ├── main_integration.py         # Main workflow
 ├── create_test_images.py       # Test image generator
 ├── verify_setup.py             # Dependency verification
 ├── test_runner.py              # Main CI/CD test runner
+├── test_version_compatibility.py # Version detection & API compatibility tests
 ├── test_blender_boolean.py     # Blender API compatibility tests
 ├── test_integration.py         # Test suite
 ├── test_e2e_validation.py      # E2E validation with IoU
 ├── requirements.txt            # Dependencies
+├── utils/                      # Utility modules
+│   └── blender_version.py      # Version detection & compatibility
 ├── primitives/                 # Blender primitive spawning
 │   └── primitives.py
 ├── shape_matching/             # Slice-based shape analysis
@@ -116,12 +120,22 @@ blender --background --python test_runner.py -- --verbose
 
 ### Test Suite
 
-The test runner executes 5 test suites:
-1. **Boolean Solver Compatibility** - Validates Blender API enums
-2. **MeshJoiner Integration** - Tests mesh joining with actual Blender operations
-3. **Full Workflow** - End-to-end procedural generation
-4. **E2E Validation** - Complete pipeline with IoU comparison (reference → 3D → render → compare)
-5. **Dependency Check** - Verifies all packages installed correctly
+The test runner executes 6 test suites:
+1. **Version Compatibility** - Detects Blender version and validates API compatibility
+2. **Boolean Solver Enum** - Validates Blender API enums for current version
+3. **MeshJoiner Integration** - Tests mesh joining with actual Blender operations
+4. **Full Workflow** - End-to-end procedural generation
+5. **E2E Validation** - Complete pipeline with IoU comparison (reference → 3D → render → compare)
+6. **Dependency Check** - Verifies all packages installed correctly
+
+### Supported Blender Versions
+
+Works automatically across Blender versions:
+- **Blender 5.0+**: Uses EXACT boolean solver (fully supported)
+- **Blender 4.2 (LTS)**: Uses FAST boolean solver (fully supported)
+- **Blender 4.0-4.1**: Uses FAST boolean solver (supported)
+
+Version detection is automatic - no configuration required.
 
 ### CI/CD Integration
 

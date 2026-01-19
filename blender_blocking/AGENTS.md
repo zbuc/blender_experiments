@@ -23,7 +23,8 @@ blender --background --python test_runner.py -- --quick
 - `2` = Runner error ⚠️ → Check Blender installation
 
 **What quick mode tests:**
-- Boolean solver compatibility
+- Version compatibility detection
+- Boolean solver enum compatibility
 - MeshJoiner integration
 - Dependency verification
 
@@ -63,12 +64,13 @@ Both must exit with code `0`.
 
 ### Required: Full Test Suite
 
-All 5 test suites must pass:
-1. ✅ Boolean Solver Compatibility
-2. ✅ MeshJoiner Integration
-3. ✅ Full Workflow (Procedural)
-4. ✅ E2E Validation (Image → Mesh → Render → IoU)
-5. ✅ Dependency Check
+All 6 test suites must pass:
+1. ✅ Version Compatibility
+2. ✅ Boolean Solver Enum
+3. ✅ MeshJoiner Integration
+4. ✅ Full Workflow (Procedural)
+5. ✅ E2E Validation (Image → Mesh → Render → IoU)
+6. ✅ Dependency Check
 
 ### Required: No Regressions
 

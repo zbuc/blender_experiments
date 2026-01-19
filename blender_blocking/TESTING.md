@@ -36,14 +36,28 @@ blender --background --python test_runner.py -- --quick
 
 ### What Gets Tested
 
-The test runner executes:
-1. **Boolean Solver Compatibility** - Validates boolean modifier enums work
-2. **MeshJoiner Integration** - Tests actual mesh joining in Blender
-3. **Full Workflow** - End-to-end procedural generation
-4. **E2E Validation** - Complete pipeline test: loads reference images, generates 3D mesh, renders orthogonal views, compares using IoU (Intersection over Union). This validates the entire workflow and would have caught the boolean solver bug.
-5. **Dependency Check** - Verifies all packages installed correctly
+The test runner executes 6 test suites:
+1. **Version Compatibility** - Detects Blender version and validates API compatibility
+2. **Boolean Solver Enum** - Validates boolean modifier enums work for current version
+3. **MeshJoiner Integration** - Tests actual mesh joining in Blender
+4. **Full Workflow** - End-to-end procedural generation
+5. **E2E Validation** - Complete pipeline test: loads reference images, generates 3D mesh, renders orthogonal views, compares using IoU (Intersection over Union). This validates the entire workflow and would have caught the boolean solver bug.
+6. **Dependency Check** - Verifies all packages installed correctly
 
 These tests run in **actual Blender** and catch real API issues that mocked tests miss.
+
+### Supported Blender Versions
+
+The tool automatically detects your Blender version and uses compatible APIs:
+
+| Blender Version | Boolean Solver | Status |
+|-----------------|----------------|--------|
+| 5.0+ | EXACT | ✅ Fully supported |
+| 4.2 (LTS) | FAST | ✅ Fully supported |
+| 4.0-4.1 | FAST | ✅ Supported |
+| 3.6 | FAST | ⚠️ May work but not tested |
+
+The version detection happens automatically - no configuration needed.
 
 ### CI/CD Integration
 
@@ -81,30 +95,35 @@ The integration includes comprehensive test components:
 ### Production Test Suite (Runs in Blender)
 
 1. **test_runner.py** - Main CI/CD test runner
-   - Runs all tests in headless Blender
+   - Runs all 6 tests in headless Blender
    - Exit codes for CI/CD integration
    - Quick mode for pre-commit hooks
 
-2. **test_blender_boolean.py** - Blender API compatibility tests
+2. **test_version_compatibility.py** - Version detection and API compatibility
+   - Detects Blender version at runtime
+   - Validates API compatibility for current version
+   - Tests version-aware boolean solver selection
+
+3. **test_blender_boolean.py** - Blender API compatibility tests
    - Boolean solver enum validation
    - MeshJoiner integration tests
    - Catches Blender version-specific bugs
 
-3. **test_integration.py** - Full workflow tests
+4. **test_integration.py** - Full workflow tests
    - Image processing validation
    - Procedural generation tests
    - End-to-end workflow verification
 
-4. **test_e2e_validation.py** - Complete pipeline validation
+5. **test_e2e_validation.py** - Complete pipeline validation
    - Loads reference images, generates 3D mesh, renders views, compares IoU
    - Validates entire workflow with actual Blender rendering
    - Would have caught boolean solver bug (mesh creation failure)
 
 ### Development Utilities
 
-5. **create_test_images.py** - Generates sample reference images
-6. **verify_setup.py** - Dependency verification
-7. **main_integration.py** - Interactive workflow examples
+6. **create_test_images.py** - Generates sample reference images
+7. **verify_setup.py** - Dependency verification
+8. **main_integration.py** - Interactive workflow examples
 
 ## 1. Generate Test Images
 

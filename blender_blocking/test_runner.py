@@ -61,9 +61,25 @@ def run_test_suite(verbose=False, quick=False):
     print(f"\n✓ Running in Blender {version}")
     print(f"✓ Python {sys.version.split()[0]}")
 
-    # Test 1: Boolean solver compatibility
+    # Test 1: Version compatibility
     print("\n" + "-"*70)
-    print("[1/5] Boolean Solver Compatibility")
+    print("[1/6] Version Compatibility")
+    print("-"*70)
+    try:
+        from test_version_compatibility import test_version_detection, test_boolean_solver_compatibility
+        version_ok = test_version_detection()
+        solver_ok = test_boolean_solver_compatibility()
+        results['version_compatibility'] = version_ok and solver_ok
+    except Exception as e:
+        print(f"❌ Test crashed: {e}")
+        if verbose:
+            import traceback
+            traceback.print_exc()
+        results['version_compatibility'] = False
+
+    # Test 2: Boolean solver enum
+    print("\n" + "-"*70)
+    print("[2/6] Boolean Solver Enum")
     print("-"*70)
     try:
         from test_blender_boolean import test_boolean_solver_enum
@@ -75,9 +91,9 @@ def run_test_suite(verbose=False, quick=False):
             traceback.print_exc()
         results['boolean_solver'] = False
 
-    # Test 2: MeshJoiner integration
+    # Test 3: MeshJoiner integration
     print("\n" + "-"*70)
-    print("[2/5] MeshJoiner Integration")
+    print("[3/6] MeshJoiner Integration")
     print("-"*70)
     try:
         from test_blender_boolean import test_mesh_joiner
@@ -89,10 +105,10 @@ def run_test_suite(verbose=False, quick=False):
             traceback.print_exc()
         results['mesh_joiner'] = False
 
-    # Test 3: Full workflow test
+    # Test 4: Full workflow test
     if not quick:
         print("\n" + "-"*70)
-        print("[3/5] Full Workflow (Procedural)")
+        print("[4/6] Full Workflow (Procedural)")
         print("-"*70)
         try:
             from test_integration import test_procedural_generation
@@ -105,14 +121,14 @@ def run_test_suite(verbose=False, quick=False):
             results['procedural_workflow'] = False
     else:
         print("\n" + "-"*70)
-        print("[3/5] Full Workflow (SKIPPED - quick mode)")
+        print("[4/6] Full Workflow (SKIPPED - quick mode)")
         print("-"*70)
         results['procedural_workflow'] = None
 
-    # Test 4: E2E Validation (Reference → 3D → Render → Compare)
+    # Test 5: E2E Validation (Reference → 3D → Render → Compare)
     if not quick:
         print("\n" + "-"*70)
-        print("[4/5] E2E Validation (Image → Mesh → Render → IoU)")
+        print("[5/6] E2E Validation (Image → Mesh → Render → IoU)")
         print("-"*70)
         try:
             from test_e2e_validation import test_with_sample_images
@@ -125,16 +141,16 @@ def run_test_suite(verbose=False, quick=False):
             results['e2e_validation'] = False
     else:
         print("\n" + "-"*70)
-        print("[4/5] E2E Validation (SKIPPED - quick mode)")
+        print("[5/6] E2E Validation (SKIPPED - quick mode)")
         print("-"*70)
         results['e2e_validation'] = None
 
-    # Test 5: Dependency verification
+    # Test 6: Dependency verification
     print("\n" + "-"*70)
-    print("[5/5] Dependency Check")
+    print("[6/6] Dependency Check")
     print("-"*70)
     try:
-        import sys
+        # sys already imported at module level - no need to reimport
         sys.path.insert(0, str(Path(__file__).parent.parent))
         from blender_blocking.verify_setup import verify_setup
         results['dependencies'] = verify_setup()

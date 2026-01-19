@@ -7,6 +7,12 @@ import bpy
 import bmesh
 from mathutils import Vector
 import math
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils.blender_version import get_boolean_solver
 
 
 class SliceAnalyzer:
@@ -180,7 +186,8 @@ class MeshJoiner:
             modifier = base_obj.modifiers.new(name=f"Union_{i}", type='BOOLEAN')
             modifier.operation = 'UNION'
             modifier.object = obj
-            modifier.solver = 'EXACT'  # Blender 5.0+: 'FAST' removed, use 'EXACT' for precision
+            # Use version-aware solver selection (EXACT for 5.0+, FAST for 4.x)
+            modifier.solver = get_boolean_solver()
 
             # Apply the modifier
             bpy.context.view_layer.objects.active = base_obj
