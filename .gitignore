@@ -6,6 +6,9 @@
 .claude/
 state.json
 
+# Test/scratch scripts
+stacked_cubes.py
+
 # Python
 __pycache__/
 *.py[cod]
