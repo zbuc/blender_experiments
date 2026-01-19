@@ -1,0 +1,19 @@
+# Gas Town beads tracking (managed via beads-sync branch)
+.beads/
+
+# Gas Town runtime state
+.runtime/
+.claude/
+state.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Blender temp files
+*.blend1
+*.blend2
+
+# OS
+.DS_Store
