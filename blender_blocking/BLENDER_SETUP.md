@@ -6,11 +6,19 @@ Complete guide to configuring Blender's Python environment to use the blocking t
 
 Blender bundles its own Python interpreter, which doesn't have access to your virtual environment by default. We need to make the dependencies (numpy, opencv-python, Pillow, scipy) available to Blender's Python.
 
-## Solution Options
+## REQUIRED Setup: Install to Blender's Python
 
-Choose the approach that works best for your workflow:
+**⚠️ IMPORTANT: You MUST install dependencies directly into Blender's Python interpreter.**
 
-### Option 1: Install Dependencies into Blender's Python (Recommended)
+The virtual environment approach (using your project's venv) does NOT work reliably due to binary compatibility issues. Packages like Pillow include compiled C extensions that are Python version-specific. When your venv uses Python 3.13 but Blender uses Python 3.11, you'll get errors like:
+
+```
+ImportError: cannot import name '_imaging' from 'PIL'
+```
+
+**There is only one supported installation method:**
+
+### Install Dependencies into Blender's Python (REQUIRED)
 
 Install packages directly into Blender's bundled Python interpreter.
 
@@ -50,93 +58,6 @@ If the paths above don't work, open Blender's Python console and run:
 import sys
 print(sys.executable)
 ```
-
-### Option 2: Add Virtual Environment to Blender's sys.path
-
-Make Blender aware of your virtual environment's packages.
-
-**In Blender's Python console or script:**
-```python
-import sys
-
-# Add venv site-packages to Blender's path
-venv_path = "/path/to/blender_blocking/venv/lib/python3.13/site-packages"
-sys.path.insert(0, venv_path)
-
-# Now you can import the modules
-import numpy
-import cv2
-from blender_blocking.main_integration import BlockingWorkflow
-```
-
-**To find your venv site-packages path:**
-```bash
-cd blender_blocking
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-python -c "import site; print(site.getsitepackages()[0])"
-deactivate
-```
-
-### Option 3: Launch Blender with PYTHONPATH
-
-Set the PYTHONPATH environment variable when launching Blender.
-
-**macOS/Linux:**
-```bash
-cd blender_blocking
-VENV_PACKAGES="$(pwd)/venv/lib/python3.13/site-packages"
-
-# Launch Blender with custom PYTHONPATH
-PYTHONPATH="$VENV_PACKAGES:$PYTHONPATH" /Applications/Blender.app/Contents/MacOS/Blender
-
-# Or create a launch script
-cat > launch_blender.sh << 'EOF'
-#!/bin/bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_PACKAGES="$SCRIPT_DIR/venv/lib/python3.13/site-packages"
-export PYTHONPATH="$VENV_PACKAGES:$PYTHONPATH"
-/Applications/Blender.app/Contents/MacOS/Blender "$@"
-EOF
-
-chmod +x launch_blender.sh
-./launch_blender.sh
-```
-
-**Windows (PowerShell):**
-```powershell
-cd blender_blocking
-$VENV_PACKAGES = "$(pwd)\venv\Lib\site-packages"
-$env:PYTHONPATH = "$VENV_PACKAGES;$env:PYTHONPATH"
-& "C:\Program Files\Blender Foundation\Blender 4.0\blender.exe"
-```
-
-### Option 4: Startup Script (Persistent)
-
-Add a startup script to Blender that automatically configures paths.
-
-1. Create a startup script:
-```bash
-# macOS/Linux
-mkdir -p ~/.config/blender/4.0/scripts/startup
-cat > ~/.config/blender/4.0/scripts/startup/setup_blocking_tool.py << 'EOF'
-import sys
-import os
-
-# Add your venv site-packages
-VENV_PATH = "/absolute/path/to/blender_blocking/venv/lib/python3.13/site-packages"
-if os.path.exists(VENV_PATH) and VENV_PATH not in sys.path:
-    sys.path.insert(0, VENV_PATH)
-    print(f"[Blocking Tool] Added venv to path: {VENV_PATH}")
-
-# Add blocking tool parent directory
-BLOCKING_TOOL_PATH = "/absolute/path/to/crew/sculptor"
-if os.path.exists(BLOCKING_TOOL_PATH) and BLOCKING_TOOL_PATH not in sys.path:
-    sys.path.insert(0, BLOCKING_TOOL_PATH)
-    print(f"[Blocking Tool] Added blocking tool to path: {BLOCKING_TOOL_PATH}")
-EOF
-```
-
-2. Restart Blender - the script runs automatically on startup
 
 ## Verification
 
@@ -211,7 +132,7 @@ $BLENDER_PYTHON -m pip install "numpy<2.0" opencv-python Pillow scipy
 
 ### Different Python versions
 
-If your venv uses Python 3.13 but Blender uses 3.11, the packages may not be compatible. Use Option 1 (install directly into Blender's Python) instead.
+If you see errors about missing extensions or binary incompatibility, your venv and Blender are using different Python versions. This is why you MUST install directly into Blender's Python - the compiled extensions must match Blender's Python version exactly.
 
 ### opencv-python build errors on macOS ARM (M1/M2/M3)
 
@@ -220,21 +141,15 @@ Use prebuilt wheels:
 $BLENDER_PYTHON -m pip install --only-binary :all: opencv-python
 ```
 
-## Recommended Workflow
+## Why Other Approaches Don't Work
 
-**For development and testing:**
-- Use Option 1 (install into Blender's Python)
-- Most reliable, no path juggling needed
+You may find guides online suggesting virtual environment integration (sys.path manipulation, PYTHONPATH, etc.). **These approaches are NOT supported** for this tool because:
 
-**For production/deployment:**
-- Use Option 4 (startup script)
-- Automated, consistent across sessions
-- Easy to update paths centrally
+1. **Binary compatibility issues**: Pillow, opencv-python, and numpy include compiled C extensions that must match your Python version exactly
+2. **Unreliable imports**: Even if pure-Python parts load, C extensions will fail with cryptic errors
+3. **Version mismatches**: Your venv likely uses a different Python version than Blender
 
-**For quick testing:**
-- Use Option 2 (sys.path.insert)
-- No installation needed
-- Good for trying things out
+**The only reliable approach is installing directly into Blender's Python.**
 
 ## Creating a Helper Script
 

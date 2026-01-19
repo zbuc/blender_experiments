@@ -7,23 +7,41 @@ Get started with the Blender automated blocking tool in minutes.
 - Blender 3.0 or later
 - Python 3.8+
 
-## Important: Blender Python Setup
+## REQUIRED: Blender Python Setup
 
-**Before you start**, you need to configure Blender's Python to access the tool's dependencies.
+**⚠️ YOU MUST COMPLETE THIS STEP BEFORE USING THE TOOL**
 
-👉 **See [BLENDER_SETUP.md](BLENDER_SETUP.md) for complete setup instructions**
+The tool requires dependencies (numpy, opencv-python, Pillow, scipy) to be installed **directly into Blender's Python**. Virtual environment approaches DO NOT work due to binary compatibility issues.
 
-**Quick option (Recommended):** Install dependencies directly into Blender's Python:
+### Step-by-Step Setup:
 
-```bash
-# macOS (adjust version as needed)
-/Applications/Blender.app/Contents/Resources/4.0/python/bin/python3.11 -m pip install numpy opencv-python Pillow scipy
+1. **Find Blender's Python path:**
+   - Open Blender
+   - Switch to **Scripting** workspace
+   - In the Python Console, run:
+   ```python
+   import sys
+   print(sys.executable)
+   ```
+   This will print something like: `/Applications/Blender.app/Contents/Resources/4.0/python/bin/python3.11`
 
-# Find your Blender Python path: Open Blender → Python Console → Run:
-# import sys; print(sys.executable)
-```
+2. **Install dependencies:**
+   ```bash
+   # Use the path from step 1
+   /path/to/blender/python -m pip install numpy opencv-python Pillow scipy
+   ```
 
-See BLENDER_SETUP.md for other methods (venv integration, PYTHONPATH, startup scripts).
+3. **Verify setup:**
+   ```python
+   # In Blender's Python Console:
+   import sys
+   sys.path.insert(0, "/path/to/crew/sculptor")
+   exec(open("/path/to/crew/sculptor/blender_blocking/verify_setup.py").read())
+   ```
+
+   You should see "✅ SETUP COMPLETE" if everything is installed correctly.
+
+👉 **See [BLENDER_SETUP.md](BLENDER_SETUP.md) for platform-specific details and troubleshooting**
 
 ## Step 1: Install Python Dependencies (For Testing Outside Blender)
 
@@ -145,14 +163,27 @@ mesh = workflow.run_full_workflow(num_slices=8)
 
 ### "No module named numpy" or dependency errors
 
-See [BLENDER_SETUP.md](BLENDER_SETUP.md) for complete Blender Python configuration guide with multiple setup options.
+**This means you haven't completed the required setup step.**
 
-**Quick fix:**
+Run the verification script to diagnose:
 ```python
-# In Blender, add your venv to path before importing
+# In Blender's Python Console:
 import sys
-sys.path.insert(0, "/path/to/blender_blocking/venv/lib/python3.X/site-packages")
+sys.path.insert(0, "/path/to/crew/sculptor")
+exec(open("/path/to/crew/sculptor/blender_blocking/verify_setup.py").read())
 ```
+
+The script will tell you exactly what's missing. Then follow the setup instructions at the top of this file.
+
+See [BLENDER_SETUP.md](BLENDER_SETUP.md) for complete troubleshooting guide.
+
+### "ImportError: cannot import name '_imaging' from 'PIL'"
+
+**This means you installed Pillow in a venv instead of into Blender's Python.**
+
+Pillow has compiled C extensions that must match Blender's Python version exactly. Virtual environment packages won't work.
+
+**Fix:** Install directly into Blender's Python as described in the REQUIRED setup section above.
 
 ### "No shapes detected"
 - Ensure images have good contrast (black on white)
@@ -164,9 +195,10 @@ sys.path.insert(0, "/path/to/blender_blocking/venv/lib/python3.X/site-packages")
 
 ### Import errors
 
-Make sure you use the correct path in `sys.path.insert(0, "...")` - it should point to the directory containing `blender_blocking/`
-
-For persistent setup across Blender sessions, see the startup script option in [BLENDER_SETUP.md](BLENDER_SETUP.md)
+Make sure you:
+1. Completed the REQUIRED setup (installed dependencies into Blender's Python)
+2. Use the correct path in `sys.path.insert(0, "...")` - it should point to the directory containing `blender_blocking/`
+3. Run the verification script to confirm setup: `verify_setup.py`
 
 ## Next Steps
 

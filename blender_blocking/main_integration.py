@@ -12,6 +12,62 @@ import numpy as np
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
+
+def check_setup():
+    """
+    Verify that dependencies are properly installed and compatible.
+
+    Raises helpful error messages if setup is incomplete or incorrect.
+    """
+    try:
+        # Try importing PIL and accessing C extension
+        from PIL import Image
+        try:
+            from PIL import _imaging
+        except ImportError as e:
+            print("\n" + "="*70)
+            print("❌ SETUP ERROR: Pillow C extensions not compatible")
+            print("="*70)
+            print("\nYour Pillow installation is not compatible with this Python version.")
+            print("This typically happens when:")
+            print("  - You installed Pillow in a venv with Python 3.13")
+            print("  - But Blender is using a different Python version (e.g., 3.11)")
+            print("\nPillow includes compiled C extensions that must match your Python")
+            print("version exactly. Virtual environment packages won't work.")
+            print("\n🔧 REQUIRED FIX:")
+            print("Install dependencies directly into Blender's Python:")
+            print("\n  # Find Blender's Python path:")
+            print("  # In Blender console: import sys; print(sys.executable)")
+            print("\n  # Then install:")
+            print("  /path/to/blender/python -m pip install numpy opencv-python Pillow scipy")
+            print("\n📖 See BLENDER_SETUP.md for detailed instructions")
+            print("="*70 + "\n")
+            raise SystemExit(1)
+
+        # Check other critical imports
+        import cv2
+        import scipy
+
+    except ImportError as e:
+        if "PIL" not in str(e):
+            print("\n" + "="*70)
+            print("❌ SETUP ERROR: Missing dependencies")
+            print("="*70)
+            print(f"\nCould not import required package: {e}")
+            print("\n🔧 REQUIRED FIX:")
+            print("Install dependencies into Blender's Python:")
+            print("\n  # Find Blender's Python:")
+            print("  # In Blender console: import sys; print(sys.executable)")
+            print("\n  # Then install:")
+            print("  /path/to/blender/python -m pip install numpy opencv-python Pillow scipy")
+            print("\n📖 See BLENDER_SETUP.md for complete setup guide")
+            print("="*70 + "\n")
+            raise SystemExit(1)
+
+
+# Run setup check when module is imported
+check_setup()
+
 # Import integration modules
 from integration.image_processing.image_loader import load_orthogonal_views
 from integration.image_processing.image_processor import process_image
