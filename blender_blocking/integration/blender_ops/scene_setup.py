@@ -1,5 +1,7 @@
 """Blender scene setup utilities."""
 
+import math
+
 try:
     import bpy
     import mathutils
@@ -53,7 +55,7 @@ def add_camera(
     camera = bpy.context.object
 
     # Set rotation (convert to radians)
-    camera.rotation_euler = [mathutils.radians(r) for r in rotation]
+    camera.rotation_euler = [math.radians(r) for r in rotation]
 
     # Set as active camera
     bpy.context.scene.camera = camera
