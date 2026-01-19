@@ -1,0 +1,9 @@
+[package]
+name = "image_preprocessing"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+opencv = "0.95"
+anyhow = "1.0"
+thiserror = "1.0"
