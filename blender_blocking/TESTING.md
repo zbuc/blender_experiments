@@ -2,6 +2,56 @@
 
 This document provides testing instructions for the integration.
 
+## Quick Start
+
+**For CI/CD and headless testing:**
+```bash
+blender --background --python test_runner.py
+```
+
+See [CI_CD.md](CI_CD.md) for continuous integration setup.
+
+## Main Test Runner (CI/CD)
+
+**CRITICAL**: The test suite now requires actual Blender execution. Mocked tests were giving false confidence.
+
+### Running All Tests
+
+```bash
+# Full test suite
+blender --background --python test_runner.py
+
+# Verbose output
+blender --background --python test_runner.py -- --verbose
+
+# Quick mode (skip slow tests) for pre-commit
+blender --background --python test_runner.py -- --quick
+```
+
+### Exit Codes
+
+- `0`: All tests passed ✓
+- `1`: One or more tests failed ❌
+- `2`: Runner error (not in Blender, etc.) ⚠️
+
+### What Gets Tested
+
+The test runner executes:
+1. **Boolean Solver Compatibility** - Validates boolean modifier enums work
+2. **MeshJoiner Integration** - Tests actual mesh joining in Blender
+3. **Full Workflow** - End-to-end procedural generation
+4. **Dependency Check** - Verifies all packages installed correctly
+
+These tests run in **actual Blender** and catch real API issues that mocked tests miss.
+
+### CI/CD Integration
+
+See [CI_CD.md](CI_CD.md) for:
+- GitHub Actions workflow
+- GitLab CI configuration
+- Docker-based testing
+- Multi-version testing strategy
+
 ## Prerequisites
 
 ### Install Dependencies
@@ -25,11 +75,30 @@ C:\Program Files\Blender Foundation\Blender 3.6\3.6\python\bin\python.exe -m pip
 
 ## Test Suite Overview
 
-The integration includes three main test components:
+The integration includes comprehensive test components:
 
-1. **create_test_images.py** - Generates sample reference images
-2. **test_integration.py** - Validates workflow without Blender
-3. **main_integration.py** - Complete workflow (requires Blender)
+### Production Test Suite (Runs in Blender)
+
+1. **test_runner.py** - Main CI/CD test runner
+   - Runs all tests in headless Blender
+   - Exit codes for CI/CD integration
+   - Quick mode for pre-commit hooks
+
+2. **test_blender_boolean.py** - Blender API compatibility tests
+   - Boolean solver enum validation
+   - MeshJoiner integration tests
+   - Catches Blender version-specific bugs
+
+3. **test_integration.py** - Full workflow tests
+   - Image processing validation
+   - Procedural generation tests
+   - End-to-end workflow verification
+
+### Development Utilities
+
+4. **create_test_images.py** - Generates sample reference images
+5. **verify_setup.py** - Dependency verification
+6. **main_integration.py** - Interactive workflow examples
 
 ## 1. Generate Test Images
 
