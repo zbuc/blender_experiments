@@ -19,8 +19,8 @@ Exit codes:
 import sys
 from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add blender_blocking directory to path for test module imports
+sys.path.insert(0, str(Path(__file__).parent))
 
 
 def check_blender_available():
@@ -150,9 +150,8 @@ def run_test_suite(verbose=False, quick=False):
     print("[6/6] Dependency Check")
     print("-"*70)
     try:
-        # sys already imported at module level - no need to reimport
-        sys.path.insert(0, str(Path(__file__).parent.parent))
-        from blender_blocking.verify_setup import verify_setup
+        # sys.path already configured at module level
+        from verify_setup import verify_setup
         results['dependencies'] = verify_setup()
     except Exception as e:
         print(f"❌ Test crashed: {e}")
