@@ -18,6 +18,9 @@ from pathlib import Path
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Add ~/blender_python_packages for user-installed dependencies (numpy, opencv-python, Pillow, scipy)
+sys.path.insert(0, str(Path.home() / 'blender_python_packages'))
+
 try:
     import bpy
     BLENDER_AVAILABLE = True

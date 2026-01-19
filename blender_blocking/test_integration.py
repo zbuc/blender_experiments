@@ -11,6 +11,9 @@ import numpy as np
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Add ~/blender_python_packages for user-installed dependencies (numpy, opencv-python, Pillow, scipy)
+sys.path.insert(0, str(Path.home() / 'blender_python_packages'))
+
 # Check if we can use image creation libraries
 try:
     from PIL import Image, ImageDraw

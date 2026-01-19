@@ -22,6 +22,9 @@ from pathlib import Path
 # Add blender_blocking directory to path for test module imports
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Add ~/blender_python_packages for user-installed dependencies (numpy, opencv-python, Pillow, scipy)
+sys.path.insert(0, str(Path.home() / 'blender_python_packages'))
+
 
 def check_blender_available():
     """Verify we're running inside Blender."""
