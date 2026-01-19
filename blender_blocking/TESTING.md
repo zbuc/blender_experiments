@@ -40,7 +40,8 @@ The test runner executes:
 1. **Boolean Solver Compatibility** - Validates boolean modifier enums work
 2. **MeshJoiner Integration** - Tests actual mesh joining in Blender
 3. **Full Workflow** - End-to-end procedural generation
-4. **Dependency Check** - Verifies all packages installed correctly
+4. **E2E Validation** - Complete pipeline test: loads reference images, generates 3D mesh, renders orthogonal views, compares using IoU (Intersection over Union). This validates the entire workflow and would have caught the boolean solver bug.
+5. **Dependency Check** - Verifies all packages installed correctly
 
 These tests run in **actual Blender** and catch real API issues that mocked tests miss.
 
@@ -94,11 +95,16 @@ The integration includes comprehensive test components:
    - Procedural generation tests
    - End-to-end workflow verification
 
+4. **test_e2e_validation.py** - Complete pipeline validation
+   - Loads reference images, generates 3D mesh, renders views, compares IoU
+   - Validates entire workflow with actual Blender rendering
+   - Would have caught boolean solver bug (mesh creation failure)
+
 ### Development Utilities
 
-4. **create_test_images.py** - Generates sample reference images
-5. **verify_setup.py** - Dependency verification
-6. **main_integration.py** - Interactive workflow examples
+5. **create_test_images.py** - Generates sample reference images
+6. **verify_setup.py** - Dependency verification
+7. **main_integration.py** - Interactive workflow examples
 
 ## 1. Generate Test Images
 

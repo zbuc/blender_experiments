@@ -63,7 +63,7 @@ def run_test_suite(verbose=False, quick=False):
 
     # Test 1: Boolean solver compatibility
     print("\n" + "-"*70)
-    print("[1/4] Boolean Solver Compatibility")
+    print("[1/5] Boolean Solver Compatibility")
     print("-"*70)
     try:
         from test_blender_boolean import test_boolean_solver_enum
@@ -77,7 +77,7 @@ def run_test_suite(verbose=False, quick=False):
 
     # Test 2: MeshJoiner integration
     print("\n" + "-"*70)
-    print("[2/4] MeshJoiner Integration")
+    print("[2/5] MeshJoiner Integration")
     print("-"*70)
     try:
         from test_blender_boolean import test_mesh_joiner
@@ -92,7 +92,7 @@ def run_test_suite(verbose=False, quick=False):
     # Test 3: Full workflow test
     if not quick:
         print("\n" + "-"*70)
-        print("[3/4] Full Workflow (Procedural)")
+        print("[3/5] Full Workflow (Procedural)")
         print("-"*70)
         try:
             from test_integration import test_procedural_generation
@@ -105,13 +105,33 @@ def run_test_suite(verbose=False, quick=False):
             results['procedural_workflow'] = False
     else:
         print("\n" + "-"*70)
-        print("[3/4] Full Workflow (SKIPPED - quick mode)")
+        print("[3/5] Full Workflow (SKIPPED - quick mode)")
         print("-"*70)
         results['procedural_workflow'] = None
 
-    # Test 4: Dependency verification
+    # Test 4: E2E Validation (Reference → 3D → Render → Compare)
+    if not quick:
+        print("\n" + "-"*70)
+        print("[4/5] E2E Validation (Image → Mesh → Render → IoU)")
+        print("-"*70)
+        try:
+            from test_e2e_validation import test_with_sample_images
+            results['e2e_validation'] = test_with_sample_images()
+        except Exception as e:
+            print(f"❌ Test crashed: {e}")
+            if verbose:
+                import traceback
+                traceback.print_exc()
+            results['e2e_validation'] = False
+    else:
+        print("\n" + "-"*70)
+        print("[4/5] E2E Validation (SKIPPED - quick mode)")
+        print("-"*70)
+        results['e2e_validation'] = None
+
+    # Test 5: Dependency verification
     print("\n" + "-"*70)
-    print("[4/4] Dependency Check")
+    print("[5/5] Dependency Check")
     print("-"*70)
     try:
         import sys
