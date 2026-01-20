@@ -1,0 +1,48 @@
+EXP-B: Slice Count Variation Results
+======================================================================
+
+Test Configuration:
+  Slice counts tested: [80, 120, 160]
+  Test object: Vase (curved profile)
+  Purpose: Evaluate vertical resolution and stepping artifacts
+
+Background:
+  Previous commit (c61843e) increased num_slices from 80 to 120
+  to reduce stepping artifacts in vertical profiles.
+  This test validates that decision and explores further improvements.
+
+Results:
+----------------------------------------------------------------------
+
+80 Slices:
+  Average IoU: 0.7588
+  Processing time: 18.85s
+  Final mesh: 13,758 vertices, 13,756 faces
+  Per-view IoU scores:
+    front: 0.6566
+    side: 0.6547
+    top: 0.9650
+
+120 Slices:
+  Average IoU: 0.7534
+  Processing time: 11.68s
+  Final mesh: 13,380 vertices, 13,378 faces
+  Per-view IoU scores:
+    front: 0.6460
+    side: 0.6477
+    top: 0.9664
+
+160 Slices:
+  Average IoU: 0.7448
+  Processing time: 17.15s
+  Final mesh: 18,490 vertices, 18,488 faces
+  Per-view IoU scores:
+    front: 0.6341
+    side: 0.6341
+    top: 0.9664
+
+======================================================================
+Best quality: 80 slices (0.7588 IoU)
+Best efficiency: 120 slices
+
+Recommendation: See analysis above
