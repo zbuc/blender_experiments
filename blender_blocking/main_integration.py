@@ -377,7 +377,7 @@ class BlockingWorkflow:
             final_mesh = joiner.join_with_boolean_union(objects, target_name="Blockout_Mesh")
 
             # QA Iteration 3: Vertex-level refinement
-            if self.views.get('front') or self.views.get('side'):
+            if self.views.get('front') is not None or self.views.get('side') is not None:
                 from integration.shape_matching.vertex_refinement import refine_mesh_to_silhouettes
                 final_mesh = refine_mesh_to_silhouettes(
                     final_mesh,

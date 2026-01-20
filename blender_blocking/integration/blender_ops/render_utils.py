@@ -34,18 +34,40 @@ def render_orthogonal_views(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Camera settings for orthogonal views
+    # Calculate scene bounds to center camera
+    # Get all mesh objects
+    mesh_objects = [obj for obj in bpy.context.scene.objects if obj.type == 'MESH']
+    if mesh_objects:
+        # Calculate bounding box of all meshes
+        min_coords = [float('inf'), float('inf'), float('inf')]
+        max_coords = [float('-inf'), float('-inf'), float('-inf')]
+
+        for obj in mesh_objects:
+            for vertex in obj.bound_box:
+                world_coord = obj.matrix_world @ mathutils.Vector(vertex)
+                for i in range(3):
+                    min_coords[i] = min(min_coords[i], world_coord[i])
+                    max_coords[i] = max(max_coords[i], world_coord[i])
+
+        center_x = (min_coords[0] + max_coords[0]) / 2
+        center_y = (min_coords[1] + max_coords[1]) / 2
+        center_z = (min_coords[2] + max_coords[2]) / 2
+    else:
+        # Fallback to origin
+        center_x, center_y, center_z = 0, 0, 0
+
+    # Camera settings for orthogonal views, centered on mesh
     view_settings = {
         'front': {
-            'location': (0, -10, 0),
+            'location': (center_x, center_y - 10, center_z),
             'rotation': (math.radians(90), 0, 0)
         },
         'side': {
-            'location': (10, 0, 0),
+            'location': (center_x + 10, center_y, center_z),
             'rotation': (math.radians(90), 0, math.radians(90))
         },
         'top': {
-            'location': (0, 0, 10),
+            'location': (center_x, center_y, center_z + 10),
             'rotation': (0, 0, 0)
         }
     }

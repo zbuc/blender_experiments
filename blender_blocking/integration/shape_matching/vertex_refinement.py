@@ -78,7 +78,7 @@ def refine_mesh_to_silhouettes(
         print("Warning: Blender API not available, skipping vertex refinement")
         return mesh_obj
 
-    if not front_silhouette and not side_silhouette:
+    if front_silhouette is None and side_silhouette is None:
         print("Warning: No silhouettes provided, skipping vertex refinement")
         return mesh_obj
 
@@ -152,6 +152,10 @@ def refine_mesh_to_silhouettes(
 
     print(f"  Z range: {z_min:.3f} to {z_max:.3f} (height: {z_range:.3f})")
 
+    # Calculate maximum radius of the mesh (for denormalizing profile values)
+    max_mesh_radius = max(math.sqrt(v.co.x**2 + v.co.y**2) for v in vertices)
+    print(f"  Max mesh radius: {max_mesh_radius:.3f}")
+
     # Reposition each vertex
     adjusted_count = 0
 
@@ -170,18 +174,21 @@ def refine_mesh_to_silhouettes(
             continue
 
         # Get target radius from profiles (average if both available)
-        target_radii = []
+        # Profile values are 0-1 normalized, need to scale to mesh dimensions
+        target_radii_normalized = []
 
         if 'front' in profiles:
-            target_radii.append(interpolate_profile(profiles['front'], z_normalized))
+            target_radii_normalized.append(interpolate_profile(profiles['front'], z_normalized))
 
         if 'side' in profiles:
-            target_radii.append(interpolate_profile(profiles['side'], z_normalized))
+            target_radii_normalized.append(interpolate_profile(profiles['side'], z_normalized))
 
-        if not target_radii:
+        if not target_radii_normalized:
             continue
 
-        target_radius = sum(target_radii) / len(target_radii)
+        # Average normalized radii and convert to actual mesh radius
+        target_radius_normalized = sum(target_radii_normalized) / len(target_radii_normalized)
+        target_radius = target_radius_normalized * max_mesh_radius
 
         # Calculate scale factor
         if current_radius > 0:
