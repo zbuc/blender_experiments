@@ -178,3 +178,51 @@ def spawn_torus(
     if name:
         obj.name = name
     return obj
+
+
+def spawn_ellipsoid(
+    radius_x: float = 1.0,
+    radius_y: float = 1.0,
+    radius_z: float = 1.0,
+    location: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    rotation: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    segments: int = 32,
+    ring_count: int = 16,
+    name: Optional[str] = None
+) -> bpy.types.Object:
+    """
+    Spawn an ellipsoid primitive (scaled sphere).
+
+    Args:
+        radius_x: Radius along X axis (default: 1.0)
+        radius_y: Radius along Y axis (default: 1.0)
+        radius_z: Radius along Z axis (default: 1.0)
+        location: (x, y, z) position (default: origin)
+        rotation: (x, y, z) rotation in radians (default: no rotation)
+        segments: Number of segments (default: 32)
+        ring_count: Number of rings (default: 16)
+        name: Optional name for the object
+
+    Returns:
+        The created ellipsoid object
+    """
+    # Start with a UV sphere of radius 1.0
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        radius=1.0,
+        location=location,
+        rotation=rotation,
+        segments=segments,
+        ring_count=ring_count
+    )
+    obj = bpy.context.active_object
+
+    # Scale non-uniformly to create ellipsoid
+    obj.scale = (radius_x, radius_y, radius_z)
+
+    # Apply scale to make it permanent in the mesh data
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.transform_apply(scale=True)
+
+    if name:
+        obj.name = name
+    return obj

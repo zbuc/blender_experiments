@@ -151,7 +151,7 @@ class PrimitivePlacer:
         Create a primitive object.
 
         Args:
-            primitive_type: Type of primitive ('CUBE', 'SPHERE', 'CYLINDER', 'CONE')
+            primitive_type: Type of primitive ('CUBE', 'SPHERE', 'CYLINDER', 'CONE', 'ELLIPSOID')
             location: World location for the primitive
             scale: Scale vector for the primitive
 
@@ -166,6 +166,9 @@ class PrimitivePlacer:
             bpy.ops.mesh.primitive_cylinder_add(location=location, vertices=32)
         elif primitive_type == 'CONE':
             bpy.ops.mesh.primitive_cone_add(location=location)
+        elif primitive_type == 'ELLIPSOID':
+            # Create a UV sphere and scale it to form an ellipsoid
+            bpy.ops.mesh.primitive_uv_sphere_add(location=location, segments=32, ring_count=16)
         else:
             raise ValueError(f"Unknown primitive type: {primitive_type}")
 
