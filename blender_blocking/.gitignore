@@ -12,6 +12,8 @@ ENV/
 
 # Test outputs
 test_images/
+test_output/
+*.log
 
 # IDE
 .vscode/
