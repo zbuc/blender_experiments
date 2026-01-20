@@ -206,6 +206,12 @@ class BlockingWorkflow:
         front_bbox = get_largest_bbox(front_shapes)
         side_bbox = get_largest_bbox(side_shapes)
 
+        # Debug: Show detected bounding boxes
+        if front_bbox:
+            print(f"    DEBUG: Front bbox: {front_bbox}")
+        if side_bbox:
+            print(f"    DEBUG: Side bbox: {side_bbox}")
+
         # Scale factor from image coordinates to world coordinates
         scale = 0.01  # 1 pixel = 0.01 units
 
@@ -254,21 +260,102 @@ class BlockingWorkflow:
         # Setup clean Blender scene
         setup_scene(clear_existing=True)
 
-        # Calculate bounds from shape analysis
-        bounds_min, bounds_max = self.calculate_bounds_from_shapes()
-        print(f"  Bounds: {bounds_min} to {bounds_max}")
+        # Extract vertical profile from reference images first (we'll use it for bounds too)
+        # Use original images (not edge-detected) for better silhouette extraction
+        vertical_profile = None
+        profile_image_shape = None
+        if 'front' in self.views:
+            from integration.shape_matching.profile_extractor import extract_vertical_profile, extract_silhouette_from_image
+            try:
+                # Extract silhouette to get accurate bounds
+                silhouette = extract_silhouette_from_image(self.views['front'])
+                profile_image_shape = silhouette.shape
 
-        # Analyze slices
+                # Extract profile
+                vertical_profile = extract_vertical_profile(
+                    self.views['front'],
+                    num_samples=num_slices
+                )
+                print(f"  Extracted vertical profile from front view ({len(vertical_profile)} samples)")
+                # Debug: Show profile range
+                radii = [r for h, r in vertical_profile]
+                print(f"  Profile radius range: {min(radii):.3f} to {max(radii):.3f}")
+            except Exception as e:
+                print(f"  Warning: Could not extract profile from front view: {e}")
+        elif 'side' in self.views:
+            from integration.shape_matching.profile_extractor import extract_vertical_profile, extract_silhouette_from_image
+            try:
+                # Extract silhouette to get accurate bounds
+                silhouette = extract_silhouette_from_image(self.views['side'])
+                profile_image_shape = silhouette.shape
+
+                # Extract profile
+                vertical_profile = extract_vertical_profile(
+                    self.views['side'],
+                    num_samples=num_slices
+                )
+                print(f"  Extracted vertical profile from side view ({len(vertical_profile)} samples)")
+                # Debug: Show profile range
+                radii = [r for h, r in vertical_profile]
+                print(f"  Profile radius range: {min(radii):.3f} to {max(radii):.3f}")
+            except Exception as e:
+                print(f"  Warning: Could not extract profile from side view: {e}")
+
+        # Calculate bounds - use silhouette bounding box if we have profile, otherwise fall back to shape analysis
+        if vertical_profile and profile_image_shape and silhouette is not None:
+            # Find the bounding box of the actual filled pixels in the silhouette
+            import cv2
+            contours, _ = cv2.findContours(silhouette, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                # Get bounding box of largest contour
+                largest_contour = max(contours, key=cv2.contourArea)
+                x, y, w, h = cv2.boundingRect(largest_contour)
+                print(f"  Silhouette bbox: x={x}, y={y}, w={w}, h={h}")
+
+                scale = 0.01  # 1 pixel = 0.01 units
+
+                # Use the bounding box dimensions
+                width = w * scale
+                height = h * scale
+
+                # Center the object
+                bounds_min = (-width/2, -width/2, 0)  # Assume square cross-section
+                bounds_max = (width/2, width/2, height)
+                print(f"  Bounds from silhouette bbox: {bounds_min} to {bounds_max}")
+            else:
+                # Fallback if no contours found
+                bounds_min, bounds_max = self.calculate_bounds_from_shapes()
+                print(f"  Bounds from shape analysis (no silhouette contours): {bounds_min} to {bounds_max}")
+        else:
+            # Fallback to shape analysis
+            bounds_min, bounds_max = self.calculate_bounds_from_shapes()
+            print(f"  Bounds from shape analysis: {bounds_min} to {bounds_max}")
+
+        # Debug: Show bounds dimensions
+        width = bounds_max[0] - bounds_min[0]
+        depth = bounds_max[1] - bounds_min[1]
+        height = bounds_max[2] - bounds_min[2]
+        print(f"  Dimensions: {width:.3f} x {depth:.3f} x {height:.3f}")
+
+        # Analyze slices with profile data
         print(f"  Analyzing {num_slices} slices...")
-        analyzer = SliceAnalyzer(bounds_min, bounds_max, num_slices=num_slices)
+        analyzer = SliceAnalyzer(
+            bounds_min, bounds_max,
+            num_slices=num_slices,
+            vertical_profile=vertical_profile
+        )
         slice_data = analyzer.get_all_slice_data()
 
         # Place primitives
         print("  Placing primitives...")
         placer = PrimitivePlacer()
 
-        # Determine best primitive type from shape analysis
-        if self.shape_analysis:
+        # When we have a vertical profile, force CYLINDER type for proper radius control
+        if vertical_profile:
+            primitive_type = 'CYLINDER'
+            print(f"  Using CYLINDER primitives for profile-based reconstruction")
+        elif self.shape_analysis:
+            # Determine best primitive type from shape analysis
             all_shapes = []
             for shapes in self.shape_analysis.values():
                 all_shapes.extend(shapes)
@@ -288,6 +375,16 @@ class BlockingWorkflow:
             print("  Joining meshes...")
             joiner = MeshJoiner()
             final_mesh = joiner.join_with_boolean_union(objects, target_name="Blockout_Mesh")
+
+            # QA Iteration 3: Vertex-level refinement
+            if self.views.get('front') or self.views.get('side'):
+                from integration.shape_matching.vertex_refinement import refine_mesh_to_silhouettes
+                final_mesh = refine_mesh_to_silhouettes(
+                    final_mesh,
+                    front_silhouette=self.views.get('front'),
+                    side_silhouette=self.views.get('side'),
+                    subdivision_levels=1
+                )
 
             # Setup camera and lighting
             print("  Setting up camera and lighting...")
