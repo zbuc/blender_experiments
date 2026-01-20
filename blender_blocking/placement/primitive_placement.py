@@ -18,7 +18,7 @@ from utils.blender_version import get_boolean_solver
 class SliceAnalyzer:
     """Analyzes 2D slices to determine primitive placement parameters."""
 
-    def __init__(self, bounds_min, bounds_max, num_slices=10):
+    def __init__(self, bounds_min, bounds_max, num_slices=10, vertical_profile=None):
         """
         Initialize slice analyzer.
 
@@ -26,10 +26,13 @@ class SliceAnalyzer:
             bounds_min: Vector representing minimum bounds (x, y, z)
             bounds_max: Vector representing maximum bounds (x, y, z)
             num_slices: Number of slices to analyze along Z axis
+            vertical_profile: Optional list of (height, radius) tuples from image analysis
+                            where height is 0 (bottom) to 1 (top) and radius is 0-1 normalized
         """
         self.bounds_min = Vector(bounds_min)
         self.bounds_max = Vector(bounds_max)
         self.num_slices = num_slices
+        self.vertical_profile = vertical_profile
 
     def analyze_slice(self, z_position):
         """
@@ -45,9 +48,12 @@ class SliceAnalyzer:
         z_range = self.bounds_max.z - self.bounds_min.z
         z_normalized = (z_position - self.bounds_min.z) / z_range if z_range > 0 else 0.5
 
-        # Example: create a tapered profile (wider in middle, narrower at ends)
-        # Using a sine wave to create interesting variation
-        profile_factor = math.sin(z_normalized * math.pi)
+        # Use vertical profile from image if available, otherwise fallback to uniform cylinder
+        if self.vertical_profile:
+            profile_factor = self._interpolate_profile(z_normalized)
+        else:
+            # Uniform cylinder fallback when no profile data available
+            profile_factor = 0.8
 
         # Calculate center position for this slice
         center = Vector((
@@ -61,13 +67,20 @@ class SliceAnalyzer:
             (self.bounds_max.x - self.bounds_min.x) / 2,
             (self.bounds_max.y - self.bounds_min.y) / 2
         )
-        radius = max_radius * profile_factor * 0.8
+        # When using extracted profile, don't apply the 0.8 shrink factor
+        # The profile already contains the exact measurements we want
+        if self.vertical_profile:
+            radius = max_radius * profile_factor
+        else:
+            radius = max_radius * profile_factor * 0.8
 
         # Scale factor for primitive
+        # Use significant overlap for Z to ensure cylinders blend smoothly
+        z_overlap_factor = 2.5  # Cylinders overlap by 150% for smoother boolean union
         scale = Vector((
             radius,
             radius,
-            z_range / self.num_slices
+            (z_range / self.num_slices) * z_overlap_factor
         ))
 
         return {
@@ -93,6 +106,39 @@ class SliceAnalyzer:
 
         return slice_data
 
+    def _interpolate_profile(self, z_normalized):
+        """
+        Interpolate radius from profile data at given normalized height.
+
+        Args:
+            z_normalized: Height position normalized to 0-1 range
+
+        Returns:
+            Interpolated radius factor (0-1)
+        """
+        if not self.vertical_profile:
+            return 0.8  # Default fallback
+
+        # Find the two profile points that bracket z_normalized
+        heights = [h for h, r in self.vertical_profile]
+        radii = [r for h, r in self.vertical_profile]
+
+        # Handle edge cases
+        if z_normalized <= heights[0]:
+            return radii[0]
+        if z_normalized >= heights[-1]:
+            return radii[-1]
+
+        # Linear interpolation between bracketing points
+        for i in range(len(heights) - 1):
+            if heights[i] <= z_normalized <= heights[i + 1]:
+                # Linear interpolation
+                t = (z_normalized - heights[i]) / (heights[i + 1] - heights[i])
+                return radii[i] * (1 - t) + radii[i + 1] * t
+
+        # Fallback (should not reach here)
+        return 0.8
+
 
 class PrimitivePlacer:
     """Places and manages 3D primitives based on slice analysis."""
@@ -117,7 +163,7 @@ class PrimitivePlacer:
         elif primitive_type == 'SPHERE':
             bpy.ops.mesh.primitive_uv_sphere_add(location=location)
         elif primitive_type == 'CYLINDER':
-            bpy.ops.mesh.primitive_cylinder_add(location=location)
+            bpy.ops.mesh.primitive_cylinder_add(location=location, vertices=32)
         elif primitive_type == 'CONE':
             bpy.ops.mesh.primitive_cone_add(location=location)
         else:

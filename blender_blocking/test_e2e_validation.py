@@ -157,6 +157,13 @@ class E2EValidator:
             ref_silhouette = self.extract_silhouette(reference_paths[view])
             render_silhouette = self.extract_silhouette(rendered_paths[view])
 
+            # Debug: Save silhouettes for inspection
+            from PIL import Image
+            debug_dir = Path(__file__).parent / 'test_output' / 'debug_silhouettes'
+            debug_dir.mkdir(parents=True, exist_ok=True)
+            Image.fromarray(ref_silhouette).save(debug_dir / f"{view}_ref_silhouette.png")
+            Image.fromarray(render_silhouette).save(debug_dir / f"{view}_render_silhouette.png")
+
             # Compare
             iou, details = compare_silhouettes(ref_silhouette, render_silhouette)
 
@@ -234,9 +241,9 @@ def test_with_sample_images():
         'top': str(test_images_dir / 'vase_top.png')
     }
 
-    # Run validation
+    # Run validation with many slices to capture profile details
     validator = E2EValidator(iou_threshold=0.7)
-    passed, results = validator.validate_reconstruction(reference_paths, num_slices=12)
+    passed, results = validator.validate_reconstruction(reference_paths, num_slices=120)
 
     # Print detailed results
     validator.print_detailed_results()
