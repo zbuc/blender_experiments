@@ -88,7 +88,7 @@ except ImportError:
 class BlockingWorkflow:
     """Main workflow class for automated blocking from reference images."""
 
-    def __init__(self, front_path=None, side_path=None, top_path=None):
+    def __init__(self, front_path=None, side_path=None, top_path=None, interpolation_method='linear'):
         """
         Initialize the blocking workflow.
 
@@ -96,10 +96,12 @@ class BlockingWorkflow:
             front_path: Path to front view reference image
             side_path: Path to side view reference image
             top_path: Path to top view reference image
+            interpolation_method: Profile interpolation method ('linear', 'cubic', 'median_linear', 'gaussian_linear')
         """
         self.front_path = front_path
         self.side_path = side_path
         self.top_path = top_path
+        self.interpolation_method = interpolation_method
         self.views = {}
         self.processed_views = {}
         self.contours = {}
@@ -274,7 +276,8 @@ class BlockingWorkflow:
                 # Extract profile
                 vertical_profile = extract_vertical_profile(
                     self.views['front'],
-                    num_samples=num_slices
+                    num_samples=num_slices,
+                    interpolation_method=self.interpolation_method
                 )
                 print(f"  Extracted vertical profile from front view ({len(vertical_profile)} samples)")
                 # Debug: Show profile range
@@ -292,7 +295,8 @@ class BlockingWorkflow:
                 # Extract profile
                 vertical_profile = extract_vertical_profile(
                     self.views['side'],
-                    num_samples=num_slices
+                    num_samples=num_slices,
+                    interpolation_method=self.interpolation_method
                 )
                 print(f"  Extracted vertical profile from side view ({len(vertical_profile)} samples)")
                 # Debug: Show profile range

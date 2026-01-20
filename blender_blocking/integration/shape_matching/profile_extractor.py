@@ -7,9 +7,66 @@ to filled silhouettes first, enabling accurate 3D mesh reconstruction.
 
 import numpy as np
 import cv2
-from scipy.ndimage import median_filter
+from scipy.ndimage import median_filter, gaussian_filter1d
 from scipy.interpolate import interp1d
 from typing import List, Tuple
+
+
+def interpolate_profile(
+    widths: np.ndarray,
+    method: str = 'linear'
+) -> np.ndarray:
+    """
+    Interpolate missing values in profile with various methods.
+
+    Args:
+        widths: Array of width measurements (may contain NaN)
+        method: Interpolation method - 'linear', 'cubic', 'median_linear', 'gaussian_linear'
+
+    Returns:
+        Array with NaN values interpolated
+    """
+    # Handle missing data (NaN values) with interpolation
+    if np.isnan(widths).any():
+        valid_indices = ~np.isnan(widths)
+        if valid_indices.sum() >= 2:
+            # Get valid data points
+            valid_positions = np.where(valid_indices)[0]
+            valid_widths = widths[valid_indices]
+
+            # Apply preprocessing based on method
+            if method == 'median_linear':
+                # C2: Apply median filter to valid widths before interpolation
+                valid_widths = median_filter(valid_widths, size=3)
+            elif method == 'gaussian_linear':
+                # C3: Apply Gaussian smoothing to valid widths before interpolation
+                valid_widths = gaussian_filter1d(valid_widths, sigma=1.0)
+
+            # Choose interpolation kind
+            if method == 'cubic':
+                # C1: Cubic spline interpolation
+                interp_kind = 'cubic'
+            else:
+                # Linear interpolation (baseline, median_linear, gaussian_linear)
+                interp_kind = 'linear'
+
+            # Create interpolation function
+            interp_func = interp1d(
+                valid_positions,
+                valid_widths,
+                kind=interp_kind,
+                fill_value='extrapolate'
+            )
+
+            # Interpolate missing values
+            invalid_positions = np.where(~valid_indices)[0]
+            widths = widths.copy()
+            widths[invalid_positions] = interp_func(invalid_positions)
+        else:
+            # Not enough valid data - return as is
+            pass
+
+    return widths
 
 
 def extract_silhouette_from_image(image: np.ndarray) -> np.ndarray:
@@ -49,7 +106,8 @@ def extract_silhouette_from_image(image: np.ndarray) -> np.ndarray:
 
 def extract_vertical_profile(
     image: np.ndarray,
-    num_samples: int = 100
+    num_samples: int = 100,
+    interpolation_method: str = 'linear'
 ) -> List[Tuple[float, float]]:
     """
     Extract vertical profile from image.
@@ -60,6 +118,11 @@ def extract_vertical_profile(
     Args:
         image: Input image (can be original image or edge-detected)
         num_samples: Number of vertical samples to take
+        interpolation_method: Method for interpolating missing values
+            - 'linear': Linear interpolation (baseline)
+            - 'cubic': Cubic spline interpolation
+            - 'median_linear': Median filter + linear interpolation
+            - 'gaussian_linear': Gaussian smoothing + linear interpolation
 
     Returns:
         List of (height, radius) tuples where:
@@ -110,25 +173,12 @@ def extract_vertical_profile(
     widths = np.array(widths)
 
     # Handle missing data (NaN values) with interpolation
+    widths = interpolate_profile(widths, method=interpolation_method)
+
+    # Check if we still have NaN values (not enough valid data)
     if np.isnan(widths).any():
-        valid_indices = ~np.isnan(widths)
-        if valid_indices.sum() >= 2:
-            # Interpolate missing values from valid ones
-            valid_positions = np.where(valid_indices)[0]
-            valid_widths = widths[valid_indices]
-
-            interp_func = interp1d(
-                valid_positions,
-                valid_widths,
-                kind='linear',
-                fill_value='extrapolate'
-            )
-
-            invalid_positions = np.where(~valid_indices)[0]
-            widths[invalid_positions] = interp_func(invalid_positions)
-        else:
-            # Not enough valid data - use uniform profile
-            widths = np.full(num_samples, width * 0.8)
+        # Not enough valid data - use uniform profile
+        widths = np.full(num_samples, width * 0.8)
 
     # Clamp widths to non-negative (extrapolation can produce negative values)
     widths = np.maximum(widths, 0)
