@@ -260,72 +260,80 @@ class BlockingWorkflow:
         # Setup clean Blender scene
         setup_scene(clear_existing=True)
 
-        # Extract vertical profile from reference images first (we'll use it for bounds too)
+        # Extract vertical profiles and silhouettes from reference images
         # Use original images (not edge-detected) for better silhouette extraction
-        vertical_profile = None
-        profile_image_shape = None
-        if 'front' in self.views:
-            from integration.shape_matching.profile_extractor import extract_vertical_profile, extract_silhouette_from_image
-            try:
-                # Extract silhouette to get accurate bounds
-                silhouette = extract_silhouette_from_image(self.views['front'])
-                profile_image_shape = silhouette.shape
+        from integration.shape_matching.profile_extractor import extract_vertical_profile, extract_silhouette_from_image
+        import cv2
 
-                # Extract profile
+        vertical_profile = None
+        front_silhouette = None
+        side_silhouette = None
+        front_width = None
+        side_width = None
+        height_from_silhouette = None
+
+        # Extract from front view
+        if 'front' in self.views:
+            try:
+                front_silhouette = extract_silhouette_from_image(self.views['front'])
                 vertical_profile = extract_vertical_profile(
                     self.views['front'],
                     num_samples=num_slices
                 )
                 print(f"  Extracted vertical profile from front view ({len(vertical_profile)} samples)")
-                # Debug: Show profile range
                 radii = [r for h, r in vertical_profile]
                 print(f"  Profile radius range: {min(radii):.3f} to {max(radii):.3f}")
+
+                # Get width from front silhouette (for X-axis)
+                contours, _ = cv2.findContours(front_silhouette, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                if contours:
+                    largest = max(contours, key=cv2.contourArea)
+                    x, y, w, h = cv2.boundingRect(largest)
+                    front_width = w * 0.01  # 1 pixel = 0.01 units
+                    height_from_silhouette = h * 0.01
+                    print(f"  Front silhouette bbox: x={x}, y={y}, w={w}, h={h}")
             except Exception as e:
-                print(f"  Warning: Could not extract profile from front view: {e}")
-        elif 'side' in self.views:
-            from integration.shape_matching.profile_extractor import extract_vertical_profile, extract_silhouette_from_image
+                print(f"  Warning: Could not extract front profile: {e}")
+
+        # Extract from side view
+        if 'side' in self.views:
             try:
-                # Extract silhouette to get accurate bounds
-                silhouette = extract_silhouette_from_image(self.views['side'])
-                profile_image_shape = silhouette.shape
+                side_silhouette = extract_silhouette_from_image(self.views['side'])
+                if vertical_profile is None:
+                    vertical_profile = extract_vertical_profile(
+                        self.views['side'],
+                        num_samples=num_slices
+                    )
+                    print(f"  Extracted vertical profile from side view ({len(vertical_profile)} samples)")
+                    radii = [r for h, r in vertical_profile]
+                    print(f"  Profile radius range: {min(radii):.3f} to {max(radii):.3f}")
 
-                # Extract profile
-                vertical_profile = extract_vertical_profile(
-                    self.views['side'],
-                    num_samples=num_slices
-                )
-                print(f"  Extracted vertical profile from side view ({len(vertical_profile)} samples)")
-                # Debug: Show profile range
-                radii = [r for h, r in vertical_profile]
-                print(f"  Profile radius range: {min(radii):.3f} to {max(radii):.3f}")
+                # Get width from side silhouette (for Y-axis)
+                contours, _ = cv2.findContours(side_silhouette, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                if contours:
+                    largest = max(contours, key=cv2.contourArea)
+                    x, y, w, h = cv2.boundingRect(largest)
+                    side_width = w * 0.01  # 1 pixel = 0.01 units
+                    if height_from_silhouette is None:
+                        height_from_silhouette = h * 0.01
+                    print(f"  Side silhouette bbox: x={x}, y={y}, w={w}, h={h}")
             except Exception as e:
-                print(f"  Warning: Could not extract profile from side view: {e}")
+                print(f"  Warning: Could not extract side profile: {e}")
 
-        # Calculate bounds - use silhouette bounding box if we have profile, otherwise fall back to shape analysis
-        if vertical_profile and profile_image_shape and silhouette is not None:
-            # Find the bounding box of the actual filled pixels in the silhouette
-            import cv2
-            contours, _ = cv2.findContours(silhouette, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            if contours:
-                # Get bounding box of largest contour
-                largest_contour = max(contours, key=cv2.contourArea)
-                x, y, w, h = cv2.boundingRect(largest_contour)
-                print(f"  Silhouette bbox: x={x}, y={y}, w={w}, h={h}")
+        # Calculate bounds using separate X and Y widths for elliptical cross-section
+        if front_width is not None or side_width is not None:
+            # Use extracted widths, defaulting to square if only one available
+            x_extent = front_width if front_width is not None else side_width
+            y_extent = side_width if side_width is not None else front_width
+            height = height_from_silhouette if height_from_silhouette is not None else 4.0
 
-                scale = 0.01  # 1 pixel = 0.01 units
+            bounds_min = (-x_extent/2, -y_extent/2, 0)
+            bounds_max = (x_extent/2, y_extent/2, height)
 
-                # Use the bounding box dimensions
-                width = w * scale
-                height = h * scale
-
-                # Center the object
-                bounds_min = (-width/2, -width/2, 0)  # Assume square cross-section
-                bounds_max = (width/2, width/2, height)
-                print(f"  Bounds from silhouette bbox: {bounds_min} to {bounds_max}")
+            if front_width and side_width:
+                print(f"  Bounds from both silhouettes (elliptical): {bounds_min} to {bounds_max}")
             else:
-                # Fallback if no contours found
-                bounds_min, bounds_max = self.calculate_bounds_from_shapes()
-                print(f"  Bounds from shape analysis (no silhouette contours): {bounds_min} to {bounds_max}")
+                print(f"  Bounds from single silhouette (circular): {bounds_min} to {bounds_max}")
         else:
             # Fallback to shape analysis
             bounds_min, bounds_max = self.calculate_bounds_from_shapes()

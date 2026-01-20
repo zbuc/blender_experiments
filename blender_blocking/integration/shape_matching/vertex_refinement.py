@@ -130,7 +130,13 @@ def refine_mesh_to_silhouettes(
         return mesh_obj
 
     # Phase 3: Reposition vertices to match profiles
-    print(f"\nPhase 3: Vertex Repositioning")
+    print(f"\nPhase 3: Vertex Repositioning (Per-Axis)")
+    if 'front' in profiles and 'side' in profiles:
+        print(f"  Using directional profiles: Front→X-axis, Side→Y-axis")
+    elif 'front' in profiles:
+        print(f"  Using front profile for both X and Y axes (circular)")
+    elif 'side' in profiles:
+        print(f"  Using side profile for both X and Y axes (circular)")
 
     # Get mesh bounds for Z normalization
     mesh = mesh_obj.data
@@ -152,9 +158,10 @@ def refine_mesh_to_silhouettes(
 
     print(f"  Z range: {z_min:.3f} to {z_max:.3f} (height: {z_range:.3f})")
 
-    # Calculate maximum radius of the mesh (for denormalizing profile values)
-    max_mesh_radius = max(math.sqrt(v.co.x**2 + v.co.y**2) for v in vertices)
-    print(f"  Max mesh radius: {max_mesh_radius:.3f}")
+    # Calculate maximum radial distance for uniform scaling reference
+    # We'll use this as a common scale for both X and Y profiles
+    max_radius = max(math.sqrt(v.co.x**2 + v.co.y**2) for v in vertices)
+    print(f"  Max mesh radius (for profile scaling): {max_radius:.3f}")
 
     # Reposition each vertex
     adjusted_count = 0
@@ -173,32 +180,42 @@ def refine_mesh_to_silhouettes(
         if current_radius < 0.001:
             continue
 
-        # Get target radius from profiles (average if both available)
+        # Apply profiles directionally:
+        # - Front view (X-Z plane) controls X-axis width
+        # - Side view (Y-Z plane) controls Y-axis width
         # Profile values are 0-1 normalized, need to scale to mesh dimensions
-        target_radii_normalized = []
 
-        if 'front' in profiles:
-            target_radii_normalized.append(interpolate_profile(profiles['front'], z_normalized))
+        # Calculate current X and Y distances from center (not combined radius)
+        current_x_dist = abs(x)
+        current_y_dist = abs(y)
 
-        if 'side' in profiles:
-            target_radii_normalized.append(interpolate_profile(profiles['side'], z_normalized))
+        # Get target X distance from front profile
+        x_scale_factor = 1.0
+        if 'front' in profiles and current_x_dist > 0.001:
+            front_radius_normalized = interpolate_profile(profiles['front'], z_normalized)
+            # Front profile controls X-axis: scale by max_radius (common reference)
+            target_x_dist = front_radius_normalized * max_radius
+            x_scale_factor = target_x_dist / current_x_dist
 
-        if not target_radii_normalized:
-            continue
+        # Get target Y distance from side profile
+        y_scale_factor = 1.0
+        if 'side' in profiles and current_y_dist > 0.001:
+            side_radius_normalized = interpolate_profile(profiles['side'], z_normalized)
+            # Side profile controls Y-axis: scale by max_radius (common reference)
+            target_y_dist = side_radius_normalized * max_radius
+            y_scale_factor = target_y_dist / current_y_dist
 
-        # Average normalized radii and convert to actual mesh radius
-        target_radius_normalized = sum(target_radii_normalized) / len(target_radii_normalized)
-        target_radius = target_radius_normalized * max_mesh_radius
+        # If only one profile available, use it for both axes (fallback to circular)
+        if 'front' in profiles and 'side' not in profiles:
+            # Only front available: use it for both X and Y
+            y_scale_factor = x_scale_factor
+        elif 'side' in profiles and 'front' not in profiles:
+            # Only side available: use it for both X and Y
+            x_scale_factor = y_scale_factor
 
-        # Calculate scale factor
-        if current_radius > 0:
-            scale_factor = target_radius / current_radius
-        else:
-            scale_factor = 1.0
-
-        # Apply radial adjustment (X, Y only, preserve Z)
-        vertex.co.x = x * scale_factor
-        vertex.co.y = y * scale_factor
+        # Apply directional adjustments (X, Y separately, preserve Z)
+        vertex.co.x = x * x_scale_factor
+        vertex.co.y = y * y_scale_factor
         # vertex.co.z stays unchanged
 
         adjusted_count += 1
