@@ -178,3 +178,59 @@ def spawn_torus(
     if name:
         obj.name = name
     return obj
+
+
+def spawn_ellipsoid(
+    rx: float = 1.0,
+    ry: float = 1.0,
+    rz: float = 1.0,
+    location: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    rotation: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    segments: int = 32,
+    ring_count: int = 16,
+    name: Optional[str] = None
+) -> bpy.types.Object:
+    """
+    Spawn an ellipsoid primitive with independent X, Y, Z radii.
+
+    Creates a UV sphere and scales it non-uniformly to create an ellipsoid.
+    This is ideal for organic shapes like vases, bottles, and other forms
+    that need different dimensions along each axis.
+
+    Args:
+        rx: Radius along X axis (width) (default: 1.0)
+        ry: Radius along Y axis (depth) (default: 1.0)
+        rz: Radius along Z axis (height) (default: 1.0)
+        location: (x, y, z) position (default: origin)
+        rotation: (x, y, z) rotation in radians (default: no rotation)
+        segments: Number of longitudinal segments (default: 32)
+        ring_count: Number of latitudinal rings (default: 16)
+        name: Optional name for the object
+
+    Returns:
+        The created ellipsoid object
+
+    Example:
+        # Create a tall, narrow ellipsoid (bottle-like shape)
+        spawn_ellipsoid(rx=0.5, ry=0.5, rz=2.0, location=(0, 0, 1))
+
+        # Create a wide, flat ellipsoid (disc-like shape)
+        spawn_ellipsoid(rx=2.0, ry=2.0, rz=0.5, location=(0, 0, 0))
+    """
+    # Create a unit sphere at the location with the specified rotation
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        radius=1.0,
+        location=location,
+        rotation=rotation,
+        segments=segments,
+        ring_count=ring_count
+    )
+    obj = bpy.context.active_object
+
+    # Scale non-uniformly to create ellipsoid
+    obj.scale = (rx, ry, rz)
+
+    if name:
+        obj.name = name
+
+    return obj
