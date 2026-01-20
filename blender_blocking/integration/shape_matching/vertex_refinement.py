@@ -78,7 +78,7 @@ def refine_mesh_to_silhouettes(
         print("Warning: Blender API not available, skipping vertex refinement")
         return mesh_obj
 
-    if not front_silhouette and not side_silhouette:
+    if front_silhouette is None and side_silhouette is None:
         print("Warning: No silhouettes provided, skipping vertex refinement")
         return mesh_obj
 
