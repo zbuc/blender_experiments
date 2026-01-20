@@ -210,3 +210,140 @@ def validate_profile(profile: List[Tuple[float, float]]) -> bool:
         return False
 
     return True
+
+
+def calculate_profile_confidence(profile: List[Tuple[float, float]], image: np.ndarray = None) -> float:
+    """
+    Calculate a confidence score for a profile based on consistency and coverage.
+
+    Args:
+        profile: List of (height, radius) tuples
+        image: Optional source image for additional metrics
+
+    Returns:
+        Confidence score between 0 and 1
+    """
+    if not profile or len(profile) < 3:
+        return 0.0
+
+    radii = np.array([r for h, r in profile])
+
+    # Metric 1: Smoothness (lower variance = higher confidence)
+    # Calculate local changes
+    changes = np.abs(np.diff(radii))
+    smoothness = 1.0 - np.clip(np.mean(changes) / 0.5, 0, 1)  # Normalize by expected max change
+
+    # Metric 2: Coverage (how much of the profile has non-zero radii)
+    coverage = np.sum(radii > 0.01) / len(radii)
+
+    # Metric 3: Silhouette fill quality (if image provided)
+    fill_quality = 1.0
+    if image is not None:
+        try:
+            silhouette = extract_silhouette_from_image(image)
+            # Calculate ratio of filled pixels to bounding box
+            filled_pixels = np.sum(silhouette > 127)
+            total_pixels = silhouette.shape[0] * silhouette.shape[1]
+            fill_quality = np.clip(filled_pixels / (total_pixels * 0.5), 0, 1)  # Expect ~50% fill
+        except:
+            fill_quality = 1.0
+
+    # Combine metrics (weighted average)
+    confidence = 0.4 * smoothness + 0.3 * coverage + 0.3 * fill_quality
+
+    return float(np.clip(confidence, 0, 1))
+
+
+def fuse_profiles(
+    front_profile: List[Tuple[float, float]],
+    side_profile: List[Tuple[float, float]],
+    fusion_strategy: str = "equal",
+    front_weight: float = 0.5,
+    side_weight: float = 0.5,
+    front_image: np.ndarray = None,
+    side_image: np.ndarray = None
+) -> List[Tuple[float, float]]:
+    """
+    Fuse front and side vertical profiles using various strategies.
+
+    Args:
+        front_profile: Profile from front view (height, radius) tuples
+        side_profile: Profile from side view (height, radius) tuples
+        fusion_strategy: Strategy for fusion - "equal", "front_heavy", "side_heavy", "adaptive", "custom"
+        front_weight: Weight for front profile (used if strategy is "custom")
+        side_weight: Weight for side profile (used if strategy is "custom")
+        front_image: Optional front image for adaptive weighting
+        side_image: Optional side image for adaptive weighting
+
+    Returns:
+        Fused profile as list of (height, radius) tuples
+
+    Raises:
+        ValueError: If profiles are incompatible or invalid
+    """
+    if not front_profile or not side_profile:
+        raise ValueError("Both front and side profiles must be provided")
+
+    if len(front_profile) != len(side_profile):
+        raise ValueError(f"Profiles must have same length: {len(front_profile)} vs {len(side_profile)}")
+
+    # Extract heights and radii
+    front_heights = np.array([h for h, r in front_profile])
+    front_radii = np.array([r for h, r in front_profile])
+    side_heights = np.array([h for h, r in side_profile])
+    side_radii = np.array([r for h, r in side_profile])
+
+    # Verify heights match
+    if not np.allclose(front_heights, side_heights):
+        raise ValueError("Profile heights must match between front and side views")
+
+    # Determine weights based on strategy
+    if fusion_strategy == "equal":
+        # E1: Equal weights (0.5, 0.5)
+        w_front = 0.5
+        w_side = 0.5
+    elif fusion_strategy == "front_heavy":
+        # E2: Front-heavy (0.6, 0.4)
+        w_front = 0.6
+        w_side = 0.4
+    elif fusion_strategy == "side_heavy":
+        # E3: Side-heavy (0.4, 0.6)
+        w_front = 0.4
+        w_side = 0.6
+    elif fusion_strategy == "adaptive":
+        # E4: Adaptive weights based on profile confidence
+        front_conf = calculate_profile_confidence(front_profile, front_image)
+        side_conf = calculate_profile_confidence(side_profile, side_image)
+
+        total_conf = front_conf + side_conf
+        if total_conf > 0:
+            w_front = front_conf / total_conf
+            w_side = side_conf / total_conf
+        else:
+            # Fallback to equal if both confidences are 0
+            w_front = 0.5
+            w_side = 0.5
+    elif fusion_strategy == "custom":
+        # Custom weights provided by user
+        total = front_weight + side_weight
+        if total == 0:
+            raise ValueError("Weights must sum to non-zero value")
+        w_front = front_weight / total
+        w_side = side_weight / total
+    else:
+        raise ValueError(f"Unknown fusion strategy: {fusion_strategy}")
+
+    # Fuse radii using weighted average
+    fused_radii = w_front * front_radii + w_side * side_radii
+
+    # Normalize to [0, 1] range
+    max_radius = np.max(fused_radii)
+    if max_radius > 0:
+        fused_radii = fused_radii / max_radius
+    else:
+        fused_radii = np.ones_like(fused_radii) * 0.5
+
+    # Create fused profile
+    fused_profile = [(h, r) for h, r in zip(front_heights, fused_radii)]
+
+    return fused_profile

@@ -240,13 +240,19 @@ class BlockingWorkflow:
 
         return bounds_min, bounds_max
 
-    def create_3d_blockout(self, num_slices=10, primitive_type='CYLINDER'):
+    def create_3d_blockout(self, num_slices=10, primitive_type='CYLINDER', profile_fusion_strategy='equal'):
         """
         Create 3D blockout in Blender based on analyzed shapes.
 
         Args:
             num_slices: Number of vertical slices for reconstruction
             primitive_type: Default primitive type to use
+            profile_fusion_strategy: Strategy for fusing front/side profiles
+                - "equal": Equal weights (0.5, 0.5)
+                - "front_heavy": Front-heavy (0.6, 0.4)
+                - "side_heavy": Side-heavy (0.4, 0.6)
+                - "adaptive": Adaptive weights based on profile confidence
+                - "custom": Use custom weights (requires front_weight/side_weight params)
 
         Returns:
             Final joined mesh object
@@ -262,44 +268,83 @@ class BlockingWorkflow:
 
         # Extract vertical profile from reference images first (we'll use it for bounds too)
         # Use original images (not edge-detected) for better silhouette extraction
+        from integration.shape_matching.profile_extractor import (
+            extract_vertical_profile,
+            extract_silhouette_from_image,
+            fuse_profiles
+        )
+
         vertical_profile = None
         profile_image_shape = None
-        if 'front' in self.views:
-            from integration.shape_matching.profile_extractor import extract_vertical_profile, extract_silhouette_from_image
-            try:
-                # Extract silhouette to get accurate bounds
-                silhouette = extract_silhouette_from_image(self.views['front'])
-                profile_image_shape = silhouette.shape
+        silhouette = None
+        front_profile = None
+        side_profile = None
 
-                # Extract profile
-                vertical_profile = extract_vertical_profile(
+        # Extract profile from front view if available
+        if 'front' in self.views:
+            try:
+                front_silhouette = extract_silhouette_from_image(self.views['front'])
+                front_profile = extract_vertical_profile(
                     self.views['front'],
                     num_samples=num_slices
                 )
-                print(f"  Extracted vertical profile from front view ({len(vertical_profile)} samples)")
-                # Debug: Show profile range
-                radii = [r for h, r in vertical_profile]
-                print(f"  Profile radius range: {min(radii):.3f} to {max(radii):.3f}")
+                print(f"  Extracted vertical profile from front view ({len(front_profile)} samples)")
+                radii = [r for h, r in front_profile]
+                print(f"    Front profile radius range: {min(radii):.3f} to {max(radii):.3f}")
+
+                # Use front silhouette for initial bounds if no side view
+                if 'side' not in self.views:
+                    silhouette = front_silhouette
+                    profile_image_shape = front_silhouette.shape
             except Exception as e:
                 print(f"  Warning: Could not extract profile from front view: {e}")
-        elif 'side' in self.views:
-            from integration.shape_matching.profile_extractor import extract_vertical_profile, extract_silhouette_from_image
-            try:
-                # Extract silhouette to get accurate bounds
-                silhouette = extract_silhouette_from_image(self.views['side'])
-                profile_image_shape = silhouette.shape
 
-                # Extract profile
-                vertical_profile = extract_vertical_profile(
+        # Extract profile from side view if available
+        if 'side' in self.views:
+            try:
+                side_silhouette = extract_silhouette_from_image(self.views['side'])
+                side_profile = extract_vertical_profile(
                     self.views['side'],
                     num_samples=num_slices
                 )
-                print(f"  Extracted vertical profile from side view ({len(vertical_profile)} samples)")
-                # Debug: Show profile range
-                radii = [r for h, r in vertical_profile]
-                print(f"  Profile radius range: {min(radii):.3f} to {max(radii):.3f}")
+                print(f"  Extracted vertical profile from side view ({len(side_profile)} samples)")
+                radii = [r for h, r in side_profile]
+                print(f"    Side profile radius range: {min(radii):.3f} to {max(radii):.3f}")
+
+                # Use side silhouette for initial bounds if no front view
+                if 'front' not in self.views:
+                    silhouette = side_silhouette
+                    profile_image_shape = side_silhouette.shape
+                else:
+                    # Use front silhouette for bounds (arbitrary choice)
+                    silhouette = front_silhouette
+                    profile_image_shape = front_silhouette.shape
             except Exception as e:
                 print(f"  Warning: Could not extract profile from side view: {e}")
+
+        # Fuse profiles if we have both front and side
+        if front_profile and side_profile:
+            try:
+                vertical_profile = fuse_profiles(
+                    front_profile,
+                    side_profile,
+                    fusion_strategy=profile_fusion_strategy,
+                    front_image=self.views.get('front'),
+                    side_image=self.views.get('side')
+                )
+                print(f"  Fused front and side profiles using '{profile_fusion_strategy}' strategy")
+                radii = [r for h, r in vertical_profile]
+                print(f"    Fused profile radius range: {min(radii):.3f} to {max(radii):.3f}")
+            except Exception as e:
+                print(f"  Warning: Could not fuse profiles: {e}")
+                print(f"  Falling back to front profile only")
+                vertical_profile = front_profile
+        elif front_profile:
+            vertical_profile = front_profile
+            print(f"  Using front profile only (no side view available)")
+        elif side_profile:
+            vertical_profile = side_profile
+            print(f"  Using side profile only (no front view available)")
 
         # Calculate bounds - use silhouette bounding box if we have profile, otherwise fall back to shape analysis
         if vertical_profile and profile_image_shape and silhouette is not None:
@@ -397,12 +442,17 @@ class BlockingWorkflow:
             print("  Warning: No primitives were created")
             return None
 
-    def run_full_workflow(self, num_slices=10):
+    def run_full_workflow(self, num_slices=10, profile_fusion_strategy='equal'):
         """
         Run the complete workflow from images to 3D blockout.
 
         Args:
             num_slices: Number of slices for 3D reconstruction
+            profile_fusion_strategy: Strategy for fusing front/side profiles
+                - "equal": Equal weights (0.5, 0.5) - E1
+                - "front_heavy": Front-heavy (0.6, 0.4) - E2
+                - "side_heavy": Side-heavy (0.4, 0.6) - E3
+                - "adaptive": Adaptive weights based on profile confidence - E4
 
         Returns:
             Final mesh object (if Blender available)
@@ -423,7 +473,7 @@ class BlockingWorkflow:
         # Step 4: Create 3D blockout (only if Blender available)
         result = None
         if BLENDER_AVAILABLE:
-            result = self.create_3d_blockout(num_slices=num_slices)
+            result = self.create_3d_blockout(num_slices=num_slices, profile_fusion_strategy=profile_fusion_strategy)
         else:
             print("\nShape analysis complete. Run in Blender to create 3D blockout.")
             print(f"Analyzed views: {', '.join(self.shape_analysis.keys())}")
