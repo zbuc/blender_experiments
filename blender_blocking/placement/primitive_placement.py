@@ -146,14 +146,16 @@ class PrimitivePlacer:
     def __init__(self):
         self.placed_objects = []
 
-    def create_primitive(self, primitive_type='CUBE', location=(0, 0, 0), scale=(1, 1, 1)):
+    def create_primitive(self, primitive_type='CUBE', location=(0, 0, 0), scale=(1, 1, 1), **kwargs):
         """
         Create a primitive object.
 
         Args:
-            primitive_type: Type of primitive ('CUBE', 'SPHERE', 'CYLINDER', 'CONE')
+            primitive_type: Type of primitive ('CUBE', 'SPHERE', 'CYLINDER', 'CONE', 'SUPERFRUSTUM')
             location: World location for the primitive
             scale: Scale vector for the primitive
+            **kwargs: Additional parameters for specific primitive types
+                     For SUPERFRUSTUM: radius_top, radius_bottom, height
 
         Returns:
             Created Blender object
@@ -166,6 +168,27 @@ class PrimitivePlacer:
             bpy.ops.mesh.primitive_cylinder_add(location=location, vertices=32)
         elif primitive_type == 'CONE':
             bpy.ops.mesh.primitive_cone_add(location=location)
+        elif primitive_type == 'SUPERFRUSTUM':
+            # Import spawn_superfrustum
+            sys.path.insert(0, str(Path(__file__).parent.parent))
+            from primitives.primitives import spawn_superfrustum
+
+            # Extract SuperFrustum-specific parameters
+            radius_bottom = kwargs.get('radius_bottom', 1.0)
+            radius_top = kwargs.get('radius_top', 0.5)
+            height = kwargs.get('height', 2.0)
+
+            # Create SuperFrustum
+            obj = spawn_superfrustum(
+                radius_bottom=radius_bottom,
+                radius_top=radius_top,
+                height=height,
+                location=location
+            )
+            # Apply scale after creation
+            obj.scale = scale
+            self.placed_objects.append(obj)
+            return obj
         else:
             raise ValueError(f"Unknown primitive type: {primitive_type}")
 

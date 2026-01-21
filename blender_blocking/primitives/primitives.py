@@ -178,3 +178,47 @@ def spawn_torus(
     if name:
         obj.name = name
     return obj
+
+
+def spawn_superfrustum(
+    radius_bottom: float = 1.0,
+    radius_top: float = 0.5,
+    height: float = 2.0,
+    location: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    rotation: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    vertices: int = 32,
+    name: Optional[str] = None
+) -> bpy.types.Object:
+    """
+    Spawn a SuperFrustum primitive (generalized frustum/truncated cone).
+
+    A SuperFrustum can represent:
+    - Cylinder: radius_bottom = radius_top
+    - Cone: radius_top = 0 OR radius_bottom = 0
+    - Sphere: radius_bottom = radius_top = height/2 (approximately)
+    - Tapered frustum: radius_bottom ≠ radius_top
+
+    Args:
+        radius_bottom: Radius at the bottom (default: 1.0)
+        radius_top: Radius at the top (default: 0.5)
+        height: Height of the frustum (default: 2.0)
+        location: (x, y, z) position (default: origin)
+        rotation: (x, y, z) rotation in radians (default: no rotation)
+        vertices: Number of vertices in the base (default: 32)
+        name: Optional name for the object
+
+    Returns:
+        The created frustum object
+    """
+    bpy.ops.mesh.primitive_cone_add(
+        radius1=radius_bottom,
+        radius2=radius_top,
+        depth=height,
+        location=location,
+        rotation=rotation,
+        vertices=vertices
+    )
+    obj = bpy.context.active_object
+    if name:
+        obj.name = name
+    return obj
