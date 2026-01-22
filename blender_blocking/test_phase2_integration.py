@@ -62,20 +62,13 @@ def voxelize_mesh_ground_truth(mesh_obj, resolution=128):
     """
     Voxelize mesh for ground truth IoU measurement.
 
-    Reuses working voxelizer logic from test_ground_truth_iou.py
+    Uses fixed large bounds to ensure raycasts work correctly.
+    Tight mesh-derived bounds cause incorrect voxelization (100% occupancy bug).
     """
-    # Get bounds
-    bbox = [mesh_obj.matrix_world @ Vector(corner) for corner in mesh_obj.bound_box]
-    bounds_min = Vector((
-        min(v.x for v in bbox),
-        min(v.y for v in bbox),
-        min(v.z for v in bbox)
-    ))
-    bounds_max = Vector((
-        max(v.x for v in bbox),
-        max(v.y for v in bbox),
-        max(v.z for v in bbox)
-    ))
+    # Use FIXED large bounds (same as test_ground_truth_iou.py)
+    # This ensures mesh is in CENTER of voxel grid and rays shoot from outside
+    bounds_min = Vector((-2.0, -2.0, -2.0))
+    bounds_max = Vector((2.0, 2.0, 2.0))
 
     # Create voxel grid
     voxel_grid = np.zeros((resolution, resolution, resolution), dtype=bool)
