@@ -1,0 +1,47 @@
+[
+  {
+    "name": "cube",
+    "category": "simple",
+    "type": "cube",
+    "voxelization_time": 15.075430154800415,
+    "ground_truth_voxels": 110592,
+    "3view_iou": 0.9978750723379629,
+    "3view_time": 42.84386897087097,
+    "3view_voxels": 110357,
+    "12view_iou": 0.9978750723379629,
+    "12view_time": 42.69755506515503,
+    "12view_voxels": 110357,
+    "iou_improvement": 0.0,
+    "improvement_percent": 0.0
+  },
+  {
+    "name": "vase",
+    "category": "organic",
+    "type": "vase",
+    "voxelization_time": 12.87079668045044,
+    "ground_truth_voxels": 92416,
+    "3view_iou": 0.7813690270083102,
+    "3view_time": 43.159477949142456,
+    "3view_voxels": 72211,
+    "12view_iou": 0.7813690270083102,
+    "12view_time": 42.683045864105225,
+    "12view_voxels": 72211,
+    "iou_improvement": 0.0,
+    "improvement_percent": 0.0
+  },
+  {
+    "name": "table",
+    "category": "furniture",
+    "type": "table",
+    "voxelization_time": 12.473015069961548,
+    "ground_truth_voxels": 46976,
+    "3view_iou": 0.0,
+    "3view_time": 42.62409806251526,
+    "3view_voxels": 3072,
+    "12view_iou": 0.0,
+    "12view_time": 42.35330295562744,
+    "12view_voxels": 3072,
+    "iou_improvement": 0.0,
+    "improvement_percent": 0
+  }
+]
