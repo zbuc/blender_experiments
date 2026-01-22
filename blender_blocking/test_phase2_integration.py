@@ -183,12 +183,14 @@ def render_turntable_silhouettes(mesh_obj, output_dir, num_views=12):
         output_path = output_dir / f"view_{int(angle):03d}.png"
         render_silhouette_at_angle(mesh_obj, angle, output_path)
 
-    # Top view
+    # Top view - camera pointing DOWN at object
+    import math
     bpy.ops.object.camera_add(location=(0, 0, 5.0))
     camera = bpy.context.active_object
     camera.data.type = 'ORTHO'
     camera.data.ortho_scale = 4.0
-    camera.rotation_euler = (0, 0, 0)
+    # Point camera downward (rotate around X axis by -90 degrees)
+    camera.rotation_euler = (math.radians(-90), 0, 0)
     bpy.context.scene.camera = camera
 
     scene = bpy.context.scene
@@ -211,16 +213,21 @@ def create_visual_hull_mesh(turntable_dir, resolution=128):
     )
 
     # Add views
+    print("\nAdding views to Visual Hull:")
     for view_name, (img, angle, view_type) in views_dict.items():
         if len(img.shape) == 3:
             img_gray = np.mean(img, axis=2)
         else:
             img_gray = img
         silhouette = img_gray < 128
+        foreground_pixels = silhouette.sum()
+        print(f"  {view_name}: {img.shape}, {foreground_pixels:,} foreground pixels ({foreground_pixels/silhouette.size*100:.1f}%)")
         hull.add_view_from_silhouette(silhouette, angle=angle, view_type=view_type)
 
     # Reconstruct
-    voxel_grid = hull.reconstruct(verbose=False)
+    print("\nReconstructing Visual Hull...")
+    voxel_grid = hull.reconstruct(verbose=True)
+    print(f"Visual Hull voxels: {voxel_grid.sum():,} / {voxel_grid.size:,}")
 
     # Create voxel mesh with faces (not just point cloud)
     # This enables raycasting for profile extraction
