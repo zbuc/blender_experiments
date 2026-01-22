@@ -222,18 +222,52 @@ def create_visual_hull_mesh(turntable_dir, resolution=128):
     # Reconstruct
     voxel_grid = hull.reconstruct(verbose=False)
 
-    # Extract surface points
-    points = hull.extract_mesh_points(surface_only=True)
+    # Create voxel mesh with faces (not just point cloud)
+    # This enables raycasting for profile extraction
+    voxel_size_world = (hull.bounds_max - hull.bounds_min) / hull.resolution
+    voxel_scale = voxel_size_world / 2.0
 
-    # Create Blender mesh from points
-    mesh = bpy.data.meshes.new("VisualHull_Mesh")
-    obj = bpy.data.objects.new("VisualHull_Mesh", mesh)
-    bpy.context.collection.objects.link(obj)
+    occupied_indices = np.argwhere(voxel_grid)
+    # Sample every 4th voxel for speed (still ~18k voxels for 128³)
+    sampled = occupied_indices[::4]
 
-    mesh.from_pydata(points.tolist(), [], [])
-    mesh.update()
+    if len(sampled) == 0:
+        # No occupied voxels - return empty mesh
+        mesh = bpy.data.meshes.new("VisualHull_Empty")
+        obj = bpy.data.objects.new("VisualHull_Empty", mesh)
+        bpy.context.collection.objects.link(obj)
+        return obj, voxel_grid
 
-    return obj, voxel_grid
+    # Create cube template
+    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, -100))
+    cube_template = bpy.context.active_object
+
+    # Create copies for voxels (limit to 500 for speed)
+    all_objects = []
+    for i, idx in enumerate(sampled[:500]):
+        pos = hull.bounds_min + (idx + 0.5) * voxel_size_world
+
+        if i == 0:
+            obj = cube_template
+        else:
+            obj = cube_template.copy()
+            obj.data = cube_template.data.copy()
+            bpy.context.collection.objects.link(obj)
+
+        obj.location = pos
+        obj.scale = voxel_scale
+        all_objects.append(obj)
+
+    # Join all cubes
+    bpy.context.view_layer.objects.active = all_objects[0]
+    for obj in all_objects:
+        obj.select_set(True)
+
+    bpy.ops.object.join()
+    final_obj = bpy.context.active_object
+    final_obj.name = "VisualHull"
+
+    return final_obj, voxel_grid
 
 
 def test_phase2_pipeline():
