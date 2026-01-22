@@ -407,7 +407,37 @@ def reconstruct_multiview(turntable_dir, num_views, resolution=128):
     """Reconstruct using multi-view Visual Hull."""
     from integration.image_processing.image_loader import load_multi_view_auto
 
-    views_dict = load_multi_view_auto(str(turntable_dir), num_views=num_views, include_top=True)
+    # Load all available views
+    views_dict = load_multi_view_auto(str(turntable_dir), num_views=12, include_top=True)
+
+    # Filter views based on num_views parameter
+    if num_views == 3:
+        # 3-view mode: Use only front (0°), side (90°), and top
+        filtered_views = {}
+        for view_name, (img, angle, view_type) in views_dict.items():
+            if view_type == 'top':
+                filtered_views[view_name] = (img, angle, view_type)
+            elif view_type == 'lateral' and angle in [0.0, 90.0]:
+                filtered_views[view_name] = (img, angle, view_type)
+        views_dict = filtered_views
+    elif num_views == 12:
+        # 12-view mode: Use all views (already loaded correctly)
+        pass
+    else:
+        # For other view counts, select evenly spaced lateral views
+        lateral_views = [(name, data) for name, data in views_dict.items() if data[2] == 'lateral']
+        lateral_views.sort(key=lambda x: x[1][1])  # Sort by angle
+
+        # Select evenly spaced views
+        step = len(lateral_views) // num_views
+        selected_laterals = [lateral_views[i * step] for i in range(num_views)]
+
+        filtered_views = {name: data for name, data in selected_laterals}
+        # Add top view
+        for view_name, data in views_dict.items():
+            if data[2] == 'top':
+                filtered_views[view_name] = data
+        views_dict = filtered_views
 
     hull = MultiViewVisualHull(
         resolution=resolution,
