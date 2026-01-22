@@ -59,7 +59,11 @@ def create_test_mesh_vase():
 
 
 def voxelize_mesh_ground_truth(mesh_obj, resolution=128):
-    """Voxelize mesh for ground truth IoU measurement."""
+    """
+    Voxelize mesh for ground truth IoU measurement.
+
+    Reuses working voxelizer logic from test_ground_truth_iou.py
+    """
     # Get bounds
     bbox = [mesh_obj.matrix_world @ Vector(corner) for corner in mesh_obj.bound_box]
     bounds_min = Vector((
@@ -76,35 +80,48 @@ def voxelize_mesh_ground_truth(mesh_obj, resolution=128):
     # Create voxel grid
     voxel_grid = np.zeros((resolution, resolution, resolution), dtype=bool)
 
-    # Convert to numpy for vectorized operations
-    bounds_min_np = np.array([bounds_min.x, bounds_min.y, bounds_min.z])
-    bounds_max_np = np.array([bounds_max.x, bounds_max.y, bounds_max.z])
-    voxel_size = (bounds_max_np - bounds_min_np) / resolution
+    # Use numpy arrays for bounds
+    bounds_min_arr = np.array([bounds_min.x, bounds_min.y, bounds_min.z])
+    bounds_max_arr = np.array([bounds_max.x, bounds_max.y, bounds_max.z])
+    voxel_size = (bounds_max_arr - bounds_min_arr) / resolution
 
     print(f"  Voxelizing at {resolution}³ resolution...")
     voxels_inside = 0
+    total_voxels = resolution ** 3
+    voxels_checked = 0
 
     for i in range(resolution):
         for j in range(resolution):
             for k in range(resolution):
-                voxel_pos = bounds_min_np + (np.array([i, j, k]) + 0.5) * voxel_size
+                # Voxel center position
+                voxel_pos = bounds_min_arr + (np.array([i, j, k]) + 0.5) * voxel_size
                 point = Vector((voxel_pos[0], voxel_pos[1], voxel_pos[2]))
 
-                # Tri-directional raycast
+                # Count raycasts in different directions for robustness
                 hit_count = 0
                 for ray_dir in [(1, 0, 0), (0, 1, 0), (0, 0, 1)]:
                     direction = Vector(ray_dir)
                     result, location, normal, index = mesh_obj.ray_cast(
-                        point - direction * 10,
+                        point - direction * 10,  # Start from far away
                         direction,
-                        distance=20.0
+                        distance=20.0  # Long enough to traverse bounds
                     )
                     if result:
                         hit_count += 1
 
+                # If majority of raycasts hit, consider inside
                 if hit_count >= 2:
                     voxel_grid[i, j, k] = True
                     voxels_inside += 1
+
+                voxels_checked += 1
+
+                # Progress update every 10%
+                if voxels_checked % (total_voxels // 10) == 0:
+                    progress = 100 * voxels_checked / total_voxels
+                    print(f"    Progress: {progress:.0f}% ({voxels_inside:,} voxels inside)")
+
+    print(f"  ✓ Voxelization complete: {voxels_inside:,} / {total_voxels:,} voxels")
 
     return voxel_grid, bounds_min, bounds_max
 
