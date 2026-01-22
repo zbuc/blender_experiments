@@ -75,7 +75,11 @@ def voxelize_mesh_ground_truth(mesh_obj, resolution=128):
 
     # Create voxel grid
     voxel_grid = np.zeros((resolution, resolution, resolution), dtype=bool)
-    voxel_size = (bounds_max - bounds_min) / resolution
+
+    # Convert to numpy for vectorized operations
+    bounds_min_np = np.array([bounds_min.x, bounds_min.y, bounds_min.z])
+    bounds_max_np = np.array([bounds_max.x, bounds_max.y, bounds_max.z])
+    voxel_size = (bounds_max_np - bounds_min_np) / resolution
 
     print(f"  Voxelizing at {resolution}³ resolution...")
     voxels_inside = 0
@@ -83,7 +87,7 @@ def voxelize_mesh_ground_truth(mesh_obj, resolution=128):
     for i in range(resolution):
         for j in range(resolution):
             for k in range(resolution):
-                voxel_pos = bounds_min + (np.array([i, j, k]) + 0.5) * voxel_size
+                voxel_pos = bounds_min_np + (np.array([i, j, k]) + 0.5) * voxel_size
                 point = Vector((voxel_pos[0], voxel_pos[1], voxel_pos[2]))
 
                 # Tri-directional raycast
