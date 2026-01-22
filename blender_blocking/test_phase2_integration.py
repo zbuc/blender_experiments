@@ -300,6 +300,19 @@ def create_visual_hull_mesh(turntable_dir, resolution=128):
     final_obj = bpy.context.active_object
     final_obj.name = "VisualHull"
 
+    # CRITICAL: Apply transformations to normalize mesh
+    # Without this, mesh has tiny scale and offset location
+    # This causes profile extraction to produce inflated radii (25x volume error!)
+    bpy.context.view_layer.objects.active = final_obj
+    final_obj.select_set(True)
+
+    # Apply scale/rotation/location to bake into vertices
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+    # Center at origin
+    bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_MASS', center='BOUNDS')
+    final_obj.location = (0, 0, 0)
+
     return final_obj, voxel_grid
 
 

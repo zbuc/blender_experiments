@@ -121,6 +121,22 @@ def create_visual_hull_voxel_mesh(turntable_dir, resolution=128):
 
     print(f"✓ Visual Hull mesh: {len(final_obj.data.vertices):,} vertices, {len(final_obj.data.polygons):,} faces")
 
+    # CRITICAL: Apply transformations to normalize mesh
+    # Without this, mesh has tiny scale (0.0156) and offset location
+    # This causes profile extraction to produce inflated radii
+    print("  Normalizing mesh transformations...")
+    bpy.context.view_layer.objects.active = final_obj
+    final_obj.select_set(True)
+
+    # Apply scale/rotation/location to bake into vertices
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+    # Center at origin
+    bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_MASS', center='BOUNDS')
+    final_obj.location = (0, 0, 0)
+
+    print(f"  ✓ Mesh normalized: scale={final_obj.scale}, location={final_obj.location}")
+
     return final_obj, Vector((-1.0, -1.0, -1.0)), Vector((1.0, 1.0, 1.0))
 
 
