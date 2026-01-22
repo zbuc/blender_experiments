@@ -183,17 +183,43 @@ def render_turntable_silhouettes(mesh_obj, output_dir, num_views=12):
         output_path = output_dir / f"view_{int(angle):03d}.png"
         render_silhouette_at_angle(mesh_obj, angle, output_path)
 
-    # Top view - camera pointing DOWN at object
+    # Top view - use generate_turntable_sequence.py approach
+    # Clear scene first to remove cameras/lights from lateral views
+    # (keep only the mesh object)
+    for obj in list(bpy.data.objects):
+        if obj != mesh_obj:
+            bpy.data.objects.remove(obj, do_unlink=True)
+
+    # Setup camera for top view
     import math
-    bpy.ops.object.camera_add(location=(0, 0, 5.0))
+    distance = 5.0
+    bpy.ops.object.camera_add(location=(0, 0, distance))
     camera = bpy.context.active_object
     camera.data.type = 'ORTHO'
     camera.data.ortho_scale = 4.0
-    # Point camera downward (rotate around X axis by -90 degrees)
-    camera.rotation_euler = (math.radians(-90), 0, 0)
+    camera.rotation_euler = (0, 0, 0)
     bpy.context.scene.camera = camera
 
+    # Setup scene (same as lateral views)
     scene = bpy.context.scene
+    scene.render.resolution_x = 512
+    scene.render.resolution_y = 512
+    scene.render.image_settings.file_format = 'PNG'
+    scene.render.image_settings.color_mode = 'BW'
+    scene.render.engine = 'BLENDER_EEVEE'
+
+    # White background
+    scene.world.use_nodes = True
+    scene.world.node_tree.nodes["Background"].inputs[0].default_value = (1, 1, 1, 1)
+
+    # Black mesh material
+    if not mesh_obj.data.materials:
+        mat = bpy.data.materials.new(name="Black")
+        mat.use_nodes = True
+        mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (0, 0, 0, 1)
+        mesh_obj.data.materials.append(mat)
+
+    # Render
     scene.render.filepath = str(output_dir / "top.png")
     bpy.ops.render.render(write_still=True)
 
