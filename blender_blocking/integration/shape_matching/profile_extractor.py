@@ -23,10 +23,12 @@ def extract_silhouette_from_image(image: np.ndarray) -> np.ndarray:
         Binary mask (0 or 255) where object pixels are 255
     """
     # Convert to grayscale if needed
+    has_alpha = False
     if len(image.shape) == 3:
         if image.shape[2] == 4:
             # RGBA: use alpha channel
             gray = image[:, :, 3]
+            has_alpha = True
         else:
             # RGB: convert to grayscale
             gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
@@ -34,8 +36,15 @@ def extract_silhouette_from_image(image: np.ndarray) -> np.ndarray:
         gray = image.copy()
 
     # Threshold to create binary mask
-    # Assume object is darker than background (common for line art/silhouettes)
-    _, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
+    # CRITICAL FIX: Alpha channel logic was inverted
+    # - Alpha channel: opaque (255) = object, transparent (0) = background → use THRESH_BINARY
+    # - Grayscale: dark object on light background → use THRESH_BINARY_INV
+    if has_alpha:
+        # Alpha channel: high values = opaque object (do NOT invert)
+        _, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+    else:
+        # Grayscale: assume object is darker than background (invert)
+        _, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
 
     # Fill any holes in the silhouette
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
