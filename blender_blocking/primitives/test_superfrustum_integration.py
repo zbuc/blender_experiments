@@ -5,6 +5,8 @@ This test verifies that SuperFrustum can be used with the PrimitivePlacer
 class and MeshJoiner for boolean operations.
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -16,11 +18,11 @@ try:
     from mathutils import Vector
     from placement.primitive_placement import PrimitivePlacer, MeshJoiner, clear_scene
 
-    def test_superfrustum_with_placer():
+    def test_superfrustum_with_placer() -> bool:
         """Test SuperFrustum integration with PrimitivePlacer."""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("INTEGRATION TEST: SuperFrustum with PrimitivePlacer")
-        print("="*70)
+        print("=" * 70)
 
         # Clear scene
         clear_scene()
@@ -33,36 +35,36 @@ try:
 
         # Bottom frustum (wider at base)
         obj1 = placer.create_primitive(
-            primitive_type='SUPERFRUSTUM',
+            primitive_type="SUPERFRUSTUM",
             location=(0, 0, 0),
             scale=(1, 1, 1),
             radius_bottom=2.0,
             radius_top=1.5,
-            height=2.0
+            height=2.0,
         )
         obj1.name = "SuperFrustum_Base"
         print(f"    ✓ Created {obj1.name}")
 
         # Middle frustum
         obj2 = placer.create_primitive(
-            primitive_type='SUPERFRUSTUM',
+            primitive_type="SUPERFRUSTUM",
             location=(0, 0, 2),
             scale=(1, 1, 1),
             radius_bottom=1.5,
             radius_top=1.0,
-            height=2.0
+            height=2.0,
         )
         obj2.name = "SuperFrustum_Middle"
         print(f"    ✓ Created {obj2.name}")
 
         # Top cone (radius_top = 0)
         obj3 = placer.create_primitive(
-            primitive_type='SUPERFRUSTUM',
+            primitive_type="SUPERFRUSTUM",
             location=(0, 0, 4),
             scale=(1, 1, 1),
             radius_bottom=1.0,
             radius_top=0.0,
-            height=2.0
+            height=2.0,
         )
         obj3.name = "SuperFrustum_Top"
         print(f"    ✓ Created {obj3.name}")
@@ -73,8 +75,7 @@ try:
         print("\n  Joining with boolean union...")
         joiner = MeshJoiner()
         final_mesh = joiner.join_with_boolean_union(
-            placer.placed_objects,
-            target_name="SuperFrustum_Stack"
+            placer.placed_objects, target_name="SuperFrustum_Stack"
         )
 
         print(f"    ✓ Created final mesh: {final_mesh.name}")
@@ -84,11 +85,11 @@ try:
         print("\n✓ SuperFrustum integration test PASSED")
         return True
 
-    def test_mixed_primitives():
+    def test_mixed_primitives() -> bool:
         """Test mixing SuperFrustum with traditional primitives."""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("INTEGRATION TEST: Mixed Primitives (SuperFrustum + Cylinder)")
-        print("="*70)
+        print("=" * 70)
 
         # Clear scene
         clear_scene()
@@ -98,21 +99,19 @@ try:
 
         # Create base cylinder
         obj1 = placer.create_primitive(
-            primitive_type='CYLINDER',
-            location=(0, 0, 0),
-            scale=(1.5, 1.5, 1.0)
+            primitive_type="CYLINDER", location=(0, 0, 0), scale=(1.5, 1.5, 1.0)
         )
         obj1.name = "Base_Cylinder"
         print(f"  ✓ Created {obj1.name}")
 
         # Create SuperFrustum on top
         obj2 = placer.create_primitive(
-            primitive_type='SUPERFRUSTUM',
+            primitive_type="SUPERFRUSTUM",
             location=(0, 0, 2),
             scale=(1, 1, 1),
             radius_bottom=1.5,
             radius_top=0.5,
-            height=3.0
+            height=3.0,
         )
         obj2.name = "Top_SuperFrustum"
         print(f"  ✓ Created {obj2.name}")
@@ -120,8 +119,7 @@ try:
         # Join
         joiner = MeshJoiner()
         final_mesh = joiner.join_with_boolean_union(
-            [obj1, obj2],
-            target_name="Mixed_Shape"
+            [obj1, obj2], target_name="Mixed_Shape"
         )
 
         print(f"  ✓ Created final mesh: {final_mesh.name}")
@@ -130,11 +128,11 @@ try:
         print("\n✓ Mixed primitives test PASSED")
         return True
 
-    def run_integration_tests():
+    def run_integration_tests() -> int:
         """Run all integration tests."""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("SUPERFRUSTUM INTEGRATION TEST SUITE")
-        print("="*70)
+        print("=" * 70)
 
         tests = [
             ("SuperFrustum with PrimitivePlacer", test_superfrustum_with_placer),
@@ -150,13 +148,14 @@ try:
                 print(f"\n❌ {name} FAILED with exception:")
                 print(f"   {type(e).__name__}: {e}")
                 import traceback
+
                 traceback.print_exc()
                 results[name] = False
 
         # Print summary
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("INTEGRATION TEST SUMMARY")
-        print("="*70)
+        print("=" * 70)
 
         passed = sum(1 for v in results.values() if v is True)
         failed = sum(1 for v in results.values() if v is False)
@@ -165,7 +164,7 @@ try:
             status = "✓ PASS" if result else "❌ FAIL"
             print(f"  {name:.<50} {status}")
 
-        print("="*70)
+        print("=" * 70)
         print(f"\nResults: {passed} passed, {failed} failed")
 
         if failed > 0:

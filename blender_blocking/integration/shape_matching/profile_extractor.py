@@ -5,11 +5,14 @@ This module extracts width-at-height profiles from images by converting them
 to filled silhouettes first, enabling accurate 3D mesh reconstruction.
 """
 
+from __future__ import annotations
+
 import numpy as np
-import cv2
 from scipy.ndimage import median_filter
 from scipy.interpolate import interp1d
-from typing import List, Tuple
+from typing import List, Optional, Tuple
+
+from geometry.silhouette import bbox_from_mask, extract_binary_silhouette
 
 
 def extract_silhouette_from_image(image: np.ndarray) -> np.ndarray:
@@ -22,43 +25,17 @@ def extract_silhouette_from_image(image: np.ndarray) -> np.ndarray:
     Returns:
         Binary mask (0 or 255) where object pixels are 255
     """
-    # Convert to grayscale if needed
-    has_alpha = False
-    if len(image.shape) == 3:
-        if image.shape[2] == 4:
-            # RGBA: use alpha channel
-            gray = image[:, :, 3]
-            has_alpha = True
-        else:
-            # RGB: convert to grayscale
-            gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    else:
-        gray = image.copy()
-
-    # Threshold to create binary mask
-    # CRITICAL FIX: Alpha channel logic was inverted
-    # - Alpha channel: opaque (255) = object, transparent (0) = background → use THRESH_BINARY
-    # - Grayscale: dark object on light background → use THRESH_BINARY_INV
-    if has_alpha:
-        # Alpha channel: high values = opaque object (do NOT invert)
-        _, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
-    else:
-        # Grayscale: assume object is darker than background (invert)
-        _, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
-
-    # Fill any holes in the silhouette
-    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Create filled silhouette
-    filled = np.zeros_like(binary)
-    cv2.drawContours(filled, contours, -1, 255, -1)  # -1 thickness = filled
-
-    return filled
+    mask = extract_binary_silhouette(image)
+    return (mask.astype(np.uint8) * 255).astype(np.uint8)
 
 
 def extract_vertical_profile(
     image: np.ndarray,
-    num_samples: int = 100
+    num_samples: int = 100,
+    *,
+    bbox: Optional[Tuple[int, int, int, int]] = None,
+    already_silhouette: bool = False,
+    smoothing_window: int = 3,
 ) -> List[Tuple[float, float]]:
     """
     Extract vertical profile from image.
@@ -69,6 +46,9 @@ def extract_vertical_profile(
     Args:
         image: Input image (can be original image or edge-detected)
         num_samples: Number of vertical samples to take
+        bbox: Optional (x0, y0, x1, y1) crop bounds
+        already_silhouette: If True, treat image as a binary silhouette
+        smoothing_window: Median filter window size for width smoothing
 
     Returns:
         List of (height, radius) tuples where:
@@ -77,9 +57,23 @@ def extract_vertical_profile(
     """
     if image is None or image.size == 0:
         raise ValueError("Image is empty or None")
+    if num_samples <= 0:
+        raise ValueError("num_samples must be >= 1")
 
-    # Convert to filled silhouette first
-    silhouette = extract_silhouette_from_image(image)
+    if already_silhouette:
+        silhouette_bool = image.astype(bool)
+    else:
+        silhouette_bool = extract_binary_silhouette(image)
+
+    if not silhouette_bool.any():
+        raise ValueError("Silhouette mask is empty")
+
+    if bbox is None:
+        bbox_obj = bbox_from_mask(silhouette_bool)
+        bbox = (bbox_obj.x0, bbox_obj.y0, bbox_obj.x1, bbox_obj.y1)
+
+    x0, y0, x1, y1 = bbox
+    silhouette = silhouette_bool[y0:y1, x0:x1]
 
     height, width = silhouette.shape
 
@@ -91,29 +85,21 @@ def extract_vertical_profile(
 
     # Sample at regular vertical intervals (from bottom to top of image)
     # Note: Image coordinates have y=0 at top, but we treat bottom as z=0
-    for i in range(num_samples):
-        # Map sample index to image row (inverted: bottom = high row, top = low row)
-        y = int(height - 1 - (i / (num_samples - 1)) * (height - 1))
+    if num_samples == 1:
+        sample_positions = np.array([0.5], dtype=np.float64)
+    else:
+        sample_positions = np.linspace(0.0, 1.0, num_samples, dtype=np.float64)
 
-        # Get the row of pixels
-        row = silhouette[y, :]
+    row_indices = (height - 1 - sample_positions * (height - 1)).astype(int)
+    rows = silhouette[row_indices, :]
+    row_mask = rows.astype(bool)
+    any_filled = row_mask.any(axis=1)
 
-        # Find leftmost and rightmost filled pixels
-        filled_positions = np.where(row > 127)[0]
+    left_edge = np.argmax(row_mask, axis=1)
+    right_edge = width - 1 - np.argmax(row_mask[:, ::-1], axis=1)
+    measured_widths = right_edge - left_edge + 1
 
-        if len(filled_positions) >= 2:
-            # Measure width between outermost filled pixels
-            left_edge = filled_positions[0]
-            right_edge = filled_positions[-1]
-            measured_width = right_edge - left_edge
-        elif len(filled_positions) == 1:
-            # Single pixel - minimal width
-            measured_width = 1
-        else:
-            # No filled pixels - assign NaN for later interpolation
-            measured_width = np.nan
-
-        widths.append(measured_width)
+    widths = np.where(any_filled, measured_widths.astype(float), np.nan)
 
     # Convert to numpy array for processing
     widths = np.array(widths)
@@ -127,10 +113,7 @@ def extract_vertical_profile(
             valid_widths = widths[valid_indices]
 
             interp_func = interp1d(
-                valid_positions,
-                valid_widths,
-                kind='linear',
-                fill_value='extrapolate'
+                valid_positions, valid_widths, kind="linear", fill_value="extrapolate"
             )
 
             invalid_positions = np.where(~valid_indices)[0]
@@ -143,7 +126,7 @@ def extract_vertical_profile(
     widths = np.maximum(widths, 0)
 
     # Apply median filter to reduce noise (size=3 preserves more detail than size=5)
-    widths = median_filter(widths, size=3)
+    widths = median_filter(widths, size=max(int(smoothing_window), 1))
 
     # Normalize widths to 0-1 range
     max_width = np.max(widths)
@@ -157,7 +140,7 @@ def extract_vertical_profile(
     # Height: 0 at bottom, 1 at top
     profile = []
     for i in range(num_samples):
-        height_normalized = i / (num_samples - 1)
+        height_normalized = 0.5 if num_samples == 1 else i / (num_samples - 1)
         radius_normalized = normalized_widths[i]
         profile.append((height_normalized, radius_normalized))
 
@@ -165,8 +148,7 @@ def extract_vertical_profile(
 
 
 def smooth_profile(
-    profile: List[Tuple[float, float]],
-    window_size: int = 5
+    profile: List[Tuple[float, float]], window_size: int = 5
 ) -> List[Tuple[float, float]]:
     """
     Apply additional smoothing to a profile.
@@ -206,7 +188,7 @@ def validate_profile(profile: List[Tuple[float, float]]) -> bool:
 
     # Check that heights are monotonically increasing
     heights = [h for h, r in profile]
-    if not all(heights[i] <= heights[i+1] for i in range(len(heights)-1)):
+    if not all(heights[i] <= heights[i + 1] for i in range(len(heights) - 1)):
         return False
 
     # Check that all radii are in valid range [0, 1]

@@ -11,10 +11,13 @@ Based on researcher's analysis (hq-oqsh):
 - This provides orthogonal profiles that SliceAnalyzer expects
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 import numpy as np
-from typing import List, Tuple, Dict
+from typing import Any, Dict, List, Optional, Tuple
+from types import ModuleType
 
 # Add parent for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -22,25 +25,26 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 # Import using importlib to bypass cv2 dependency
 import importlib.util
 
-def import_module_from_path(module_name, file_path):
+
+def import_module_from_path(module_name: str, file_path: Path) -> ModuleType:
     """Import module from file path bypassing __init__.py imports."""
     spec = importlib.util.spec_from_file_location(module_name, file_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
+
 # Import mesh_profile_extractor
 profile_extractor = import_module_from_path(
-    "mesh_profile_extractor",
-    Path(__file__).parent / "mesh_profile_extractor.py"
+    "mesh_profile_extractor", Path(__file__).parent / "mesh_profile_extractor.py"
 )
 
 
 def extract_weighted_profiles(
-    mesh_obj,
+    mesh_obj: Any,
     num_heights: int = 20,
-    bounds_min = None,
-    bounds_max = None
+    bounds_min: Optional[Any] = None,
+    bounds_max: Optional[Any] = None,
 ) -> Dict[str, List[Tuple[float, float]]]:
     """
     Extract weighted orthogonal profiles using best-angle selection.
@@ -76,45 +80,47 @@ def extract_weighted_profiles(
         num_angles=12,
         num_heights=num_heights,
         bounds_min=bounds_min,
-        bounds_max=bounds_max
+        bounds_max=bounds_max,
     )
+    if len(all_profiles) < 12:
+        raise ValueError(
+            f"Expected 12 profiles for weighted extraction, got {len(all_profiles)}"
+        )
 
     # Map angle indices to degrees for 12-angle extraction
     # Index 0 = 0°, Index 1 = 30°, Index 2 = 60°, ...
     angle_to_index = {
-        0: 0,     # 0° - front
+        0: 0,  # 0° - front
         30: 1,
         60: 2,
-        90: 3,    # 90° - side (right)
+        90: 3,  # 90° - side (right)
         120: 4,
         150: 5,
-        180: 6,   # 180° - back (opposite of front)
+        180: 6,  # 180° - back (opposite of front)
         210: 7,
         240: 8,
-        270: 9,   # 270° - side (left, opposite of 90°)
+        270: 9,  # 270° - side (left, opposite of 90°)
         300: 10,
-        330: 11
+        330: 11,
     }
 
     # Select cardinal angle profiles
-    front_0 = all_profiles[angle_to_index[0]]      # 0° front view
-    side_90 = all_profiles[angle_to_index[90]]     # 90° right side
-    back_180 = all_profiles[angle_to_index[180]]   # 180° back view
-    side_270 = all_profiles[angle_to_index[270]]   # 270° left side
+    front_0 = all_profiles[angle_to_index[0]]  # 0° front view
+    side_90 = all_profiles[angle_to_index[90]]  # 90° right side
+    back_180 = all_profiles[angle_to_index[180]]  # 180° back view
+    side_270 = all_profiles[angle_to_index[270]]  # 270° left side
 
     print(f"✓ Extracted profiles at cardinal angles (0°, 90°, 180°, 270°)")
 
     # Average opposite views to reduce noise and create robust orthogonal profiles
     # Front profile: Average of front (0°) and back (180°) views
     front_profile = profile_extractor.combine_profiles(
-        [front_0, back_180],
-        method='mean'
+        [front_0, back_180], method="mean"
     )
 
     # Side profile: Average of right (90°) and left (270°) views
     side_profile = profile_extractor.combine_profiles(
-        [side_90, side_270],
-        method='mean'
+        [side_90, side_270], method="mean"
     )
 
     # Extract radius ranges for reporting
@@ -122,20 +128,24 @@ def extract_weighted_profiles(
     side_radii = [r for _, r in side_profile]
 
     print(f"✓ Averaged opposite views:")
-    print(f"  Front profile (0° + 180°): radius {min(front_radii):.3f} to {max(front_radii):.3f}")
-    print(f"  Side profile (90° + 270°): radius {min(side_radii):.3f} to {max(side_radii):.3f}")
+    print(
+        f"  Front profile (0° + 180°): radius {min(front_radii):.3f} to {max(front_radii):.3f}"
+    )
+    print(
+        f"  Side profile (90° + 270°): radius {min(side_radii):.3f} to {max(side_radii):.3f}"
+    )
 
     return {
-        'front': front_profile,
-        'side': side_profile,
-        'all': all_profiles  # Keep all profiles for debugging
+        "front": front_profile,
+        "side": side_profile,
+        "all": all_profiles,  # Keep all profiles for debugging
     }
 
 
 def combine_orthogonal_profiles(
     front_profile: List[Tuple[float, float]],
     side_profile: List[Tuple[float, float]],
-    method: str = 'max'
+    method: str = "max",
 ) -> List[Tuple[float, float]]:
     """
     Combine front and side profiles into single profile for SliceAnalyzer.
@@ -157,7 +167,9 @@ def combine_orthogonal_profiles(
         Combined profile as (height, radius) pairs
     """
     if len(front_profile) != len(side_profile):
-        raise ValueError(f"Profile length mismatch: front={len(front_profile)}, side={len(side_profile)}")
+        raise ValueError(
+            f"Profile length mismatch: front={len(front_profile)}, side={len(side_profile)}"
+        )
 
     combined = []
     for (h_front, r_front), (h_side, r_side) in zip(front_profile, side_profile):
@@ -166,11 +178,11 @@ def combine_orthogonal_profiles(
             raise ValueError(f"Height mismatch at index: {h_front} vs {h_side}")
 
         # Combine radii based on method
-        if method == 'max':
+        if method == "max":
             radius = max(r_front, r_side)
-        elif method == 'mean':
+        elif method == "mean":
             radius = (r_front + r_side) / 2.0
-        elif method == 'geometric_mean':
+        elif method == "geometric_mean":
             radius = np.sqrt(r_front * r_side)
         else:
             raise ValueError(f"Unknown method: {method}")

@@ -1,19 +1,23 @@
 """Image loading utilities for orthogonal and multi-view reference images."""
 
+from __future__ import annotations
+
 import numpy as np
 from pathlib import Path
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, List, Optional, Tuple
 import re
 
 # Try PIL/Pillow, fall back to alternatives
 try:
     from PIL import Image
+
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
     # Try alternative image loading (opencv, imageio, etc.)
     try:
         import cv2
+
         HAS_CV2 = True
     except ImportError:
         HAS_CV2 = False
@@ -33,20 +37,28 @@ def load_image(image_path: str) -> np.ndarray:
         img = Image.open(image_path)
         return np.array(img)
     elif HAS_CV2:
-        img = cv2.imread(image_path)
+        img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
         if img is None:
             raise FileNotFoundError(f"Could not load image: {image_path}")
-        # OpenCV loads as BGR, convert to RGB
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if img.ndim == 2:
+            return img
+        if img.shape[2] == 4:
+            img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
+            return img
+        if img.shape[2] == 3:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            return img
         return img
     else:
-        raise ImportError("No image loading library available. Install PIL/Pillow or OpenCV.")
+        raise ImportError(
+            "No image loading library available. Install PIL/Pillow or OpenCV."
+        )
 
 
 def load_orthogonal_views(
     front_path: Optional[str] = None,
     side_path: Optional[str] = None,
-    top_path: Optional[str] = None
+    top_path: Optional[str] = None,
 ) -> Dict[str, np.ndarray]:
     """
     Load orthogonal reference images (front, side, top views).
@@ -64,11 +76,11 @@ def load_orthogonal_views(
     views = {}
 
     if front_path:
-        views['front'] = load_image(front_path)
+        views["front"] = load_image(front_path)
     if side_path:
-        views['side'] = load_image(side_path)
+        views["side"] = load_image(side_path)
     if top_path:
-        views['top'] = load_image(top_path)
+        views["top"] = load_image(top_path)
 
     return views
 
@@ -78,7 +90,7 @@ def load_multi_view_turntable(
     pattern: str = "view_{angle:03d}.png",
     angles: Optional[List[float]] = None,
     include_top: bool = True,
-    top_filename: str = "top.png"
+    top_filename: str = "top.png",
 ) -> Dict[str, Tuple[np.ndarray, float, str]]:
     """
     Load multi-view turntable sequence.
@@ -107,7 +119,9 @@ def load_multi_view_turntable(
         # Auto-detect angles from directory
         angles = _auto_detect_angles(directory, pattern)
         if not angles:
-            raise ValueError(f"No turntable views found in {directory} with pattern {pattern}")
+            raise ValueError(
+                f"No turntable views found in {directory} with pattern {pattern}"
+            )
 
     # Load lateral views
     for i, angle in enumerate(angles):
@@ -119,7 +133,7 @@ def load_multi_view_turntable(
 
         if filepath.exists():
             img = load_image(str(filepath))
-            views[f'lateral_{i}'] = (img, float(angle), 'lateral')
+            views[f"lateral_{i}"] = (img, float(angle), "lateral")
         else:
             print(f"Warning: Expected view file not found: {filepath}")
 
@@ -128,7 +142,7 @@ def load_multi_view_turntable(
         top_path = directory / top_filename
         if top_path.exists():
             img = load_image(str(top_path))
-            views['top'] = (img, 0.0, 'top')
+            views["top"] = (img, 0.0, "top")
         else:
             print(f"Warning: Top view not found: {top_path}")
 
@@ -169,9 +183,7 @@ def _auto_detect_angles(directory: Path, pattern: str) -> List[float]:
 
 
 def load_multi_view_auto(
-    directory: str,
-    num_views: Optional[int] = None,
-    include_top: bool = True
+    directory: str, num_views: Optional[int] = None, include_top: bool = True
 ) -> Dict[str, Tuple[np.ndarray, float, str]]:
     """
     Convenience function to auto-detect and load multi-view sequence.
@@ -189,6 +201,9 @@ def load_multi_view_auto(
     Returns:
         Dictionary mapping view names to (image, angle, view_type) tuples
     """
+    if num_views is not None and num_views <= 0:
+        raise ValueError("num_views must be >= 1")
+
     directory = Path(directory)
 
     # Try common patterns
@@ -203,14 +218,14 @@ def load_multi_view_auto(
     for pattern in patterns:
         try:
             views = load_multi_view_turntable(
-                str(directory),
-                pattern=pattern,
-                include_top=include_top
+                str(directory), pattern=pattern, include_top=include_top
             )
 
             if views:
-                num_lateral = sum(1 for k in views if k.startswith('lateral_'))
-                print(f"Auto-detected {num_lateral} lateral views using pattern: {pattern}")
+                num_lateral = sum(1 for k in views if k.startswith("lateral_"))
+                print(
+                    f"Auto-detected {num_lateral} lateral views using pattern: {pattern}"
+                )
 
                 if num_views and num_lateral != num_views:
                     print(f"Warning: Expected {num_views} views, found {num_lateral}")
@@ -224,8 +239,7 @@ def load_multi_view_auto(
 
 
 def validate_view_coverage(
-    views: Dict[str, Tuple[np.ndarray, float, str]],
-    expected_spacing: float = 30.0
+    views: Dict[str, Tuple[np.ndarray, float, str]], expected_spacing: float = 30.0
 ) -> bool:
     """
     Validate that lateral views are evenly distributed around 360°.
@@ -238,8 +252,7 @@ def validate_view_coverage(
         True if views are well-distributed, False otherwise
     """
     lateral_angles = [
-        angle for name, (img, angle, vtype) in views.items()
-        if vtype == 'lateral'
+        angle for name, (img, angle, vtype) in views.items() if vtype == "lateral"
     ]
 
     if len(lateral_angles) < 3:
@@ -253,7 +266,9 @@ def validate_view_coverage(
         spacing = (lateral_angles[next_i] - lateral_angles[i]) % 360
 
         if abs(spacing - expected_spacing) > 5.0:  # 5° tolerance
-            print(f"Warning: Irregular spacing between {lateral_angles[i]}° and {lateral_angles[next_i]}°: {spacing:.1f}°")
+            print(
+                f"Warning: Irregular spacing between {lateral_angles[i]}° and {lateral_angles[next_i]}°: {spacing:.1f}°"
+            )
             return False
 
     return True

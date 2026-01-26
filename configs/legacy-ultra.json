@@ -1,0 +1,85 @@
+{
+  "reconstruction": {
+    "reconstruction_mode": "legacy",
+    "unit_scale": 0.01,
+    "num_slices": 120
+  },
+  "mesh_join": {
+    "mode": "boolean",
+    "boolean_solver": "auto"
+  },
+  "silhouette_extract_ref": {
+    "prefer_alpha": true,
+    "alpha_threshold": 127,
+    "gray_threshold": null,
+    "invert_policy": "auto",
+    "morph_close_px": 0,
+    "morph_open_px": 0,
+    "fill_holes": true,
+    "largest_component_only": true
+  },
+  "silhouette_extract_render": {
+    "prefer_alpha": true,
+    "alpha_threshold": 127,
+    "gray_threshold": null,
+    "invert_policy": "auto",
+    "morph_close_px": 0,
+    "morph_open_px": 0,
+    "fill_holes": true,
+    "largest_component_only": true
+  },
+  "profile_sampling": {
+    "num_samples": 240,
+    "sample_policy": "endpoints",
+    "fill_strategy": "interp_linear",
+    "smoothing_window": 3
+  },
+  "mesh_from_profile": {
+    "radial_segments": 64,
+    "cap_mode": "fan",
+    "min_radius_u": 0.0005,
+    "merge_threshold_u": 0.0005,
+    "recalc_normals": true,
+    "shade_smooth": true,
+    "weld_degenerate_rings": true
+  },
+  "render_silhouette": {
+    "resolution": [
+      1536,
+      1536
+    ],
+    "engine": "BLENDER_EEVEE",
+    "transparent_bg": true,
+    "samples": 8,
+    "margin_frac": 0.05,
+    "color_mode": "RGBA",
+    "force_material": false,
+    "background_color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "silhouette_color": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "camera_distance_factor": 2.0,
+    "party_mode": false
+  },
+  "canonicalize": {
+    "output_size": 256,
+    "padding_frac": 0.1,
+    "anchor": "bottom_center",
+    "interp": "nearest"
+  },
+  "silhouette_intersection": {
+    "extrude_distance": 1.0,
+    "contour_mode": "external",
+    "largest_component_only": null,
+    "silhouette_extract_override": null,
+    "boolean_solver": "auto"
+  }
+}

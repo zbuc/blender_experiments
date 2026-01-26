@@ -1,0 +1,172 @@
+"""Tests for ResFit metrics (pure Python)."""
+
+from __future__ import annotations
+
+import unittest
+
+import numpy as np
+
+from placement.resfitting import ResidualFitter
+from primitives.superfrustum import SuperFrustum
+
+
+class TestResfittingMetrics(unittest.TestCase):
+    def test_sdf_batch_matches_scalar(self) -> None:
+        rng = np.random.default_rng(1234)
+        points = rng.normal(size=(10, 3))
+        sf = SuperFrustum(
+            position=(0.1, -0.2, 0.3),
+            orientation=(0.2, 0.4),
+            radius_bottom=1.2,
+            radius_top=0.8,
+            height=2.5,
+        )
+        batch = sf.sdf_batch(points)
+        scalar = np.array([sf.sdf(p) for p in points])
+        np.testing.assert_allclose(batch, scalar, rtol=1e-6, atol=1e-6)
+
+    def test_gradient_batch_matches_scalar(self) -> None:
+        sf = SuperFrustum(
+            position=(0.1, -0.2, 0.3),
+            orientation=(0.2, 0.4),
+            radius_bottom=1.2,
+            radius_top=0.8,
+            height=2.5,
+        )
+        point = np.array([[0.3, -0.4, 0.9]])
+        grads_batch = sf.gradient_batch(point)
+        grads_scalar = sf.gradient(point[0])
+
+        np.testing.assert_allclose(
+            grads_batch["position"][0], grads_scalar["position"], rtol=1e-5, atol=1e-5
+        )
+        np.testing.assert_allclose(
+            grads_batch["orientation"][0],
+            grads_scalar["orientation"],
+            rtol=1e-5,
+            atol=1e-5,
+        )
+        self.assertAlmostEqual(
+            grads_batch["radius_bottom"][0], grads_scalar["radius_bottom"], places=5
+        )
+        self.assertAlmostEqual(
+            grads_batch["radius_top"][0], grads_scalar["radius_top"], places=5
+        )
+        self.assertAlmostEqual(
+            grads_batch["height"][0], grads_scalar["height"], places=5
+        )
+
+    def test_residual_error_shapes(self) -> None:
+        fitter = ResidualFitter()
+        target_points = np.array(
+            [
+                [0.0, 1.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, -1.0, 0.0],
+                [-1.0, 0.0, 0.0],
+            ]
+        )
+        primitive = SuperFrustum(
+            position=(0.0, 0.0, 0.0),
+            orientation=(0.0, 0.0),
+            radius_bottom=1.0,
+            radius_top=1.0,
+            height=2.0,
+        )
+        total_error, per_point_errors = fitter.compute_residual_error(
+            [primitive], target_points
+        )
+        self.assertEqual(len(per_point_errors), len(target_points))
+        self.assertGreaterEqual(total_error, 0.0)
+
+    def test_residual_error_matches_scalar(self) -> None:
+        rng = np.random.default_rng(2025)
+        target_points = rng.normal(size=(20, 3))
+        primitives = [
+            SuperFrustum(
+                position=(0.0, 0.0, 0.0),
+                orientation=(0.0, 0.0),
+                radius_bottom=1.0,
+                radius_top=1.0,
+                height=2.0,
+            ),
+            SuperFrustum(
+                position=(0.5, -0.2, 0.1),
+                orientation=(0.1, 0.2),
+                radius_bottom=0.9,
+                radius_top=0.6,
+                height=1.5,
+            ),
+        ]
+        fitter = ResidualFitter()
+        total_error, per_point_errors = fitter.compute_residual_error(
+            primitives, target_points
+        )
+
+        manual = []
+        for p in target_points:
+            min_sdf = min(abs(sf.sdf(p)) for sf in primitives)
+            manual.append(min_sdf)
+        manual = np.array(manual)
+
+        self.assertAlmostEqual(total_error, float(np.mean(manual)), places=6)
+        np.testing.assert_allclose(per_point_errors, manual, rtol=1e-6, atol=1e-6)
+
+    def test_initialize_from_empty_voxels(self) -> None:
+        fitter = ResidualFitter()
+        empty_grid = np.zeros((4, 4, 4), dtype=np.float32)
+        primitives = fitter.initialize_from_voxels(empty_grid, num_initial=3)
+        self.assertEqual(primitives, [])
+
+    def test_optimize_vectorized_matches_scalar(self) -> None:
+        rng = np.random.default_rng(2026)
+        target_points = rng.normal(size=(40, 3))
+        base_primitives = [
+            SuperFrustum(
+                position=(0.1, -0.2, 0.3),
+                orientation=(0.2, 0.4),
+                radius_bottom=1.1,
+                radius_top=0.9,
+                height=2.2,
+            ),
+            SuperFrustum(
+                position=(-0.15, 0.25, -0.05),
+                orientation=(0.3, 0.5),
+                radius_bottom=0.9,
+                radius_top=0.7,
+                height=1.6,
+            ),
+        ]
+
+        def copy_primitives(primitives: list[SuperFrustum]) -> list[SuperFrustum]:
+            return [SuperFrustum.from_dict(sf.to_dict()) for sf in primitives]
+
+        fitter = ResidualFitter(learning_rate=0.02, optimization_steps=1)
+        vec_primitives = copy_primitives(base_primitives)
+        scalar_primitives = copy_primitives(base_primitives)
+
+        fitter.optimize_primitives(
+            vec_primitives, target_points, steps=1, use_vectorized=True
+        )
+        fitter.optimize_primitives(
+            scalar_primitives, target_points, steps=1, use_vectorized=False
+        )
+
+        for vec, scalar in zip(vec_primitives, scalar_primitives):
+            np.testing.assert_allclose(
+                vec.position, scalar.position, rtol=1e-4, atol=1e-5
+            )
+            np.testing.assert_allclose(
+                vec.orientation, scalar.orientation, rtol=1e-4, atol=1e-5
+            )
+            np.testing.assert_allclose(
+                vec.radius_bottom, scalar.radius_bottom, rtol=1e-4, atol=1e-5
+            )
+            np.testing.assert_allclose(
+                vec.radius_top, scalar.radius_top, rtol=1e-4, atol=1e-5
+            )
+            np.testing.assert_allclose(vec.height, scalar.height, rtol=1e-4, atol=1e-5)
+
+
+if __name__ == "__main__":
+    unittest.main()

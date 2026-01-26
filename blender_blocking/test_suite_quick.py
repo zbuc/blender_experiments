@@ -10,6 +10,8 @@ Usage:
     /Applications/Blender.app/Contents/MacOS/Blender --background --python test_suite_quick.py
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -29,11 +31,11 @@ QUICK_TEST_OBJECTS = [
 ]
 
 
-def main():
+def main() -> None:
     """Run quick validation on 3 objects."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("QUICK VALIDATION TEST - 3 Objects")
-    print("="*70)
+    print("=" * 70)
     print(f"\nObjects: {[obj['name'] for obj in QUICK_TEST_OBJECTS]}")
 
     all_results = []
@@ -46,23 +48,26 @@ def main():
         except Exception as e:
             print(f"  ❌ ERROR: {e}")
             import traceback
+
             traceback.print_exc()
-            all_results.append({
-                "name": obj_config["name"],
-                "category": obj_config["category"],
-                "error": str(e)
-            })
+            all_results.append(
+                {
+                    "name": obj_config["name"],
+                    "category": obj_config["category"],
+                    "error": str(e),
+                }
+            )
 
     # Save results
     results_path = Path("test_output/suite/quick_test_results.json")
     results_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(results_path, 'w') as f:
+    with open(results_path, "w") as f:
         json.dump(all_results, f, indent=2)
 
     # Print summary
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("QUICK TEST SUMMARY")
-    print("="*70)
+    print("=" * 70)
 
     successful = [r for r in all_results if "error" not in r]
     failed = [r for r in all_results if "error" in r]
@@ -78,11 +83,15 @@ def main():
         print(f"\nAverage IoU:")
         print(f"  3-view:  {avg_3view:.4f}")
         print(f"  12-view: {avg_12view:.4f}")
-        print(f"  Improvement: {avg_improvement:+.4f} ({avg_improvement/avg_3view*100:+.1f}%)")
+        print(
+            f"  Improvement: {avg_improvement:+.4f} ({avg_improvement/avg_3view*100:+.1f}%)"
+        )
 
         print(f"\nResults:")
         for r in successful:
-            print(f"  {r['name']:15} - 3view: {r['3view_iou']:.4f}, 12view: {r['12view_iou']:.4f}, gain: {r['iou_improvement']:+.4f}")
+            print(
+                f"  {r['name']:15} - 3view: {r['3view_iou']:.4f}, 12view: {r['12view_iou']:.4f}, gain: {r['iou_improvement']:+.4f}"
+            )
 
     if failed:
         print(f"\nFailed objects:")
@@ -97,7 +106,7 @@ def main():
     else:
         print("\n⚠ VALIDATION FAILED - Fix errors before full run")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
 
 
 if __name__ == "__main__":

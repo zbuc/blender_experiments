@@ -9,19 +9,32 @@ Usage:
     blender --background --python example_primitives.py
 """
 
+from __future__ import annotations
+
 import math
-from primitives import spawn_cube, spawn_sphere, spawn_cylinder, spawn_cone, spawn_torus
+import sys
+from pathlib import Path
+
+# Ensure repo root (blender_blocking) is on sys.path for Blender execution.
+repo_root = str(Path(__file__).resolve().parents[1])
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
+
+from primitives.primitives import (
+    spawn_cone,
+    spawn_cube,
+    spawn_cylinder,
+    spawn_sphere,
+    spawn_torus,
+)
 
 
-def create_primitive_showcase():
+def create_primitive_showcase() -> None:
     """Create a showcase of all primitive shapes with different configurations."""
 
     # Spawn a cube at the origin
     spawn_cube(
-        size=2.0,
-        location=(0.0, 0.0, 0.0),
-        rotation=(0.0, 0.0, 0.0),
-        name="MyCube"
+        size=2.0, location=(0.0, 0.0, 0.0), rotation=(0.0, 0.0, 0.0), name="MyCube"
     )
 
     # Spawn a sphere offset to the right
@@ -31,7 +44,7 @@ def create_primitive_showcase():
         rotation=(0.0, 0.0, 0.0),
         segments=32,
         ring_count=16,
-        name="MySphere"
+        name="MySphere",
     )
 
     # Spawn a cylinder offset to the left
@@ -41,7 +54,7 @@ def create_primitive_showcase():
         location=(-4.0, 0.0, 0.0),
         rotation=(0.0, 0.0, 0.0),
         vertices=32,
-        name="MyCylinder"
+        name="MyCylinder",
     )
 
     # Spawn a cone in front, rotated
@@ -52,7 +65,7 @@ def create_primitive_showcase():
         location=(0.0, 4.0, 0.0),
         rotation=(0.0, 0.0, math.radians(45)),
         vertices=32,
-        name="MyCone"
+        name="MyCone",
     )
 
     # Spawn a torus behind
@@ -63,7 +76,7 @@ def create_primitive_showcase():
         rotation=(math.radians(90), 0.0, 0.0),
         major_segments=48,
         minor_segments=12,
-        name="MyTorus"
+        name="MyTorus",
     )
 
     print("Created 5 primitive shapes: cube, sphere, cylinder, cone, and torus")

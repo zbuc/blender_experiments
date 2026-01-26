@@ -2,7 +2,7 @@
 
 ## Feasibility Verdict
 
-**✅ HIGHLY FEASIBLE - All components ready for implementation**
+**✅ Feasible, but requires roadmap updates** (canonical IoU, camera framing, and config-driven defaults).
 
 ## What We Have
 
@@ -53,7 +53,7 @@ Input Images (front/side/top)
 
 ## Implementation Status
 
-### ✅ Completed
+### 🚧 In Progress
 
 - **Feasibility analysis** (`E2E_TESTING_FEASIBILITY.md`)
   - Architecture design
@@ -62,18 +62,17 @@ Input Images (front/side/top)
   - Metrics selection (IoU)
 
 - **Prototype implementation** (`test_e2e_validation.py`)
-  - Complete validation loop
-  - Silhouette extraction
-  - IoU comparison
-  - Detailed reporting
-  - Blender headless support
+  - End-to-end loop exists but must be updated for canonical IoU + framing
+  - Silhouette extraction needs the canonicalized path
+  - IoU comparison needs resolution/framing invariance
+  - Reporting should include canonicalized debug outputs
 
-### 📋 Ready to Use
+### 📋 Not Yet Ready (Requires Updates)
 
 ```python
 # In Blender's scripting workspace
 import sys
-sys.path.insert(0, '/path/to/blender_experiments/crew/sculptor')
+sys.path.insert(0, '/path/to/blendslop')
 
 from blender_blocking.test_e2e_validation import test_with_sample_images
 
@@ -282,24 +281,6 @@ view_settings = {
 
 ## Conclusion
 
-**This is production-ready.**
+**Not production-ready yet.**
 
-All components exist and work correctly:
-- ✅ Rendering infrastructure
-- ✅ Comparison algorithms
-- ✅ Validation metrics
-- ✅ Test framework
-- ✅ Headless support
-
-**Estimated effort to production**: 4-8 hours
-- 2h: Testing and threshold tuning
-- 2h: Integration with existing test suite
-- 2h: CI/CD setup
-- 2h: Documentation updates
-
-**Risk**: Very low
-- Proven techniques (IoU is standard)
-- All dependencies satisfied
-- Clear success criteria
-
-**Recommendation**: Implement immediately. This significantly improves the tool's reliability and trustworthiness.
+The validation pipeline exists, but it needs canonical silhouette extraction, bounds-based camera framing, and config-driven defaults before it can be treated as stable. Once those updates land, IoU thresholds and debug artifacts should be re-baselined.

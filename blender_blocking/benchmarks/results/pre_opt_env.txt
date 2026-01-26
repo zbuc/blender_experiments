@@ -1,0 +1,5 @@
+Benchmark Environment
+CPU: AMD Ryzen 7 5800X3D 8-Core Processor           
+RAM_GB: 127.91
+OS: Microsoft Windows NT 10.0.26200.0
+Python: 3.13.3 (tags/v3.13.3:6280bb5, Apr  8 2025, 14:47:33) [MSC v.1943 64 bit (AMD64)]

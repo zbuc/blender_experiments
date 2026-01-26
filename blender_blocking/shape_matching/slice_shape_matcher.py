@@ -5,23 +5,68 @@ This module implements a shape matching algorithm that compares 3D meshes
 by analyzing their cross-sectional slices at regular intervals.
 """
 
-import bpy
-import bmesh
-import mathutils
-from mathutils import Vector
-from typing import List, Tuple, Dict
+from __future__ import annotations
+
+import math
+
+try:
+    import bpy
+    import bmesh
+    import mathutils
+    from mathutils import Vector
+
+    BLENDER_AVAILABLE = True
+except ImportError:
+    bpy = None
+    bmesh = None
+    mathutils = None
+    Vector = None
+    BLENDER_AVAILABLE = False
+from typing import Dict, List
 import numpy as np
 
 
 class SliceProfile:
     """Represents a 2D cross-sectional profile from a 3D mesh slice."""
 
-    def __init__(self, points: List[Vector], plane_height: float):
-        self.points = points
+    def __init__(self, points: List[Vector], plane_height: float) -> None:
+        """Create a profile from slice intersection points at a given height."""
+        deduped = self._dedupe_points(points)
+        self.points = self._order_points(deduped)
         self.plane_height = plane_height
         self.centroid = self._calculate_centroid()
         self.area = self._calculate_area()
         self.perimeter = self._calculate_perimeter()
+
+    @staticmethod
+    def _dedupe_points(points: List[Vector], eps: float = 1e-6) -> List[Vector]:
+        """Remove near-identical points from the slice profile."""
+        if not points:
+            return []
+
+        unique = []
+        seen = set()
+        for point in points:
+            key = (round(point.x / eps) * eps, round(point.y / eps) * eps)
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(point)
+        return unique
+
+    @staticmethod
+    def _order_points(points: List[Vector]) -> List[Vector]:
+        """Order points around their centroid by polar angle."""
+        if len(points) < 3:
+            return points
+
+        centroid_x = sum(p.x for p in points) / len(points)
+        centroid_y = sum(p.y for p in points) / len(points)
+
+        def angle_for_point(point: Vector) -> float:
+            return math.atan2(point.y - centroid_y, point.x - centroid_x)
+
+        return sorted(points, key=angle_for_point)
 
     def _calculate_centroid(self) -> Vector:
         """Calculate the centroid of the slice profile."""
@@ -59,12 +104,16 @@ class SliceProfile:
 
     def to_feature_vector(self) -> np.ndarray:
         """Convert slice profile to a feature vector for comparison."""
-        return np.array([
-            self.area,
-            self.perimeter,
-            self.area / (self.perimeter ** 2) if self.perimeter > 0 else 0,  # Compactness
-            len(self.points)  # Complexity
-        ])
+        return np.array(
+            [
+                self.area,
+                self.perimeter,
+                (
+                    self.area / (self.perimeter**2) if self.perimeter > 0 else 0
+                ),  # Compactness
+                len(self.points),  # Complexity
+            ]
+        )
 
 
 class SliceBasedShapeMatcher:
@@ -78,10 +127,13 @@ class SliceBasedShapeMatcher:
     4. Computes overall similarity score
     """
 
-    def __init__(self, num_slices: int = 20):
+    def __init__(self, num_slices: int = 20) -> None:
+        """Configure the matcher with the requested slice count."""
+        if num_slices <= 0:
+            raise ValueError("num_slices must be >= 1")
         self.num_slices = num_slices
 
-    def slice_mesh(self, obj: bpy.types.Object, axis: str = 'Z') -> List[SliceProfile]:
+    def slice_mesh(self, obj: bpy.types.Object, axis: str = "Z") -> List[SliceProfile]:
         """
         Slice a mesh object along the specified axis.
 
@@ -92,14 +144,16 @@ class SliceBasedShapeMatcher:
         Returns:
             List of SliceProfile objects
         """
+        if not BLENDER_AVAILABLE:
+            raise RuntimeError("Blender API not available for slice mesh")
         # Get mesh bounds
         bbox = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
 
-        if axis == 'Z':
+        if axis == "Z":
             min_val = min(v.z for v in bbox)
             max_val = max(v.z for v in bbox)
             axis_idx = 2
-        elif axis == 'Y':
+        elif axis == "Y":
             min_val = min(v.y for v in bbox)
             max_val = max(v.y for v in bbox)
             axis_idx = 1
@@ -126,8 +180,13 @@ class SliceBasedShapeMatcher:
         bm.free()
         return profiles
 
-    def _slice_at_plane(self, bm: bmesh.types.BMesh, axis_idx: int,
-                       plane_pos: float, epsilon: float = 0.001) -> List[Vector]:
+    def _slice_at_plane(
+        self,
+        bm: bmesh.types.BMesh,
+        axis_idx: int,
+        plane_pos: float,
+        epsilon: float = 0.001,
+    ) -> List[Vector]:
         """
         Extract intersection points where mesh edges cross a plane.
 
@@ -140,27 +199,37 @@ class SliceBasedShapeMatcher:
         Returns:
             List of intersection points
         """
-        intersection_points = []
+        if not BLENDER_AVAILABLE:
+            raise RuntimeError("Blender API not available for slice mesh")
+        edges = bm.edges
+        if not edges:
+            return []
 
-        for edge in bm.edges:
+        coords1 = np.empty((len(edges), 3), dtype=np.float64)
+        coords2 = np.empty((len(edges), 3), dtype=np.float64)
+        for idx, edge in enumerate(edges):
             v1, v2 = edge.verts
-            p1 = v1.co[axis_idx]
-            p2 = v2.co[axis_idx]
+            coords1[idx] = v1.co
+            coords2[idx] = v2.co
 
-            # Check if edge crosses the plane
-            if (p1 - plane_pos) * (p2 - plane_pos) <= 0:
-                # Linear interpolation to find intersection point
-                if abs(p2 - p1) > epsilon:
-                    t = (plane_pos - p1) / (p2 - p1)
-                    t = max(0.0, min(1.0, t))  # Clamp to [0, 1]
+        p1 = coords1[:, axis_idx]
+        p2 = coords2[:, axis_idx]
+        denom = p2 - p1
+        crosses = (p1 - plane_pos) * (p2 - plane_pos) <= 0
+        valid = crosses & (np.abs(denom) > epsilon)
 
-                    intersection = v1.co.lerp(v2.co, t)
-                    intersection_points.append(intersection)
+        if not np.any(valid):
+            return []
 
-        return intersection_points
+        t = (plane_pos - p1[valid]) / denom[valid]
+        t = np.clip(t, 0.0, 1.0)
+        intersections = coords1[valid] + (coords2[valid] - coords1[valid]) * t[:, None]
 
-    def compare_profiles(self, profiles1: List[SliceProfile],
-                        profiles2: List[SliceProfile]) -> float:
+        return [Vector((pt[0], pt[1], pt[2])) for pt in intersections]
+
+    def compare_profiles(
+        self, profiles1: List[SliceProfile], profiles2: List[SliceProfile]
+    ) -> float:
         """
         Compare two sets of slice profiles.
 
@@ -210,32 +279,24 @@ class SliceBasedShapeMatcher:
 
     def _normalize_features(self, features: np.ndarray) -> np.ndarray:
         """Normalize feature vectors to [0, 1] range."""
-        normalized = np.zeros_like(features)
-
-        for i in range(features.shape[1]):
-            col = features[:, i]
-            min_val, max_val = col.min(), col.max()
-
-            if max_val - min_val > 0:
-                normalized[:, i] = (col - min_val) / (max_val - min_val)
-            else:
-                normalized[:, i] = col
-
+        min_vals = features.min(axis=0)
+        max_vals = features.max(axis=0)
+        ranges = max_vals - min_vals
+        safe_ranges = np.where(ranges > 0, ranges, 1.0)
+        normalized = (features - min_vals) / safe_ranges
+        normalized[:, ranges <= 0] = features[:, ranges <= 0]
         return normalized
 
     def _cosine_similarity(self, features1: np.ndarray, features2: np.ndarray) -> float:
         """Calculate average cosine similarity between feature vectors."""
-        similarities = []
-
-        for f1, f2 in zip(features1, features2):
-            norm1 = np.linalg.norm(f1)
-            norm2 = np.linalg.norm(f2)
-
-            if norm1 > 0 and norm2 > 0:
-                sim = np.dot(f1, f2) / (norm1 * norm2)
-                similarities.append(sim)
-
-        return np.mean(similarities) if similarities else 0.0
+        norms1 = np.linalg.norm(features1, axis=1)
+        norms2 = np.linalg.norm(features2, axis=1)
+        valid = (norms1 > 0) & (norms2 > 0)
+        if not np.any(valid):
+            return 0.0
+        dots = np.sum(features1 * features2, axis=1)
+        sims = dots[valid] / (norms1[valid] * norms2[valid])
+        return float(np.mean(sims))
 
     def _correlation(self, arr1: np.ndarray, arr2: np.ndarray) -> float:
         """Calculate correlation coefficient between two arrays."""
@@ -245,8 +306,9 @@ class SliceBasedShapeMatcher:
         corr_matrix = np.corrcoef(arr1, arr2)
         return abs(corr_matrix[0, 1]) if not np.isnan(corr_matrix[0, 1]) else 0.0
 
-    def match_shapes(self, obj1: bpy.types.Object, obj2: bpy.types.Object,
-                    axis: str = 'Z') -> Dict[str, any]:
+    def match_shapes(
+        self, obj1: bpy.types.Object, obj2: bpy.types.Object, axis: str = "Z"
+    ) -> Dict[str, object]:
         """
         Match two 3D shapes using slice-based comparison.
 
@@ -266,14 +328,16 @@ class SliceBasedShapeMatcher:
         similarity = self.compare_profiles(profiles1, profiles2)
 
         return {
-            'similarity': similarity,
-            'num_slices_obj1': len(profiles1),
-            'num_slices_obj2': len(profiles2),
-            'match_quality': 'High' if similarity > 0.8 else 'Medium' if similarity > 0.5 else 'Low'
+            "similarity": similarity,
+            "num_slices_obj1": len(profiles1),
+            "num_slices_obj2": len(profiles2),
+            "match_quality": (
+                "High" if similarity > 0.8 else "Medium" if similarity > 0.5 else "Low"
+            ),
         }
 
 
-def test_slice_matcher():
+def test_slice_matcher() -> Dict[str, object]:
     """Test the slice-based shape matcher with objects in the current scene."""
     if len(bpy.context.selected_objects) < 2:
         print("Please select at least 2 mesh objects to compare")
@@ -281,7 +345,7 @@ def test_slice_matcher():
 
     obj1, obj2 = bpy.context.selected_objects[:2]
 
-    if obj1.type != 'MESH' or obj2.type != 'MESH':
+    if obj1.type != "MESH" or obj2.type != "MESH":
         print("Both objects must be mesh objects")
         return
 
@@ -295,7 +359,9 @@ def test_slice_matcher():
     print(f"Object 2: {obj2.name}")
     print(f"Similarity Score: {result['similarity']:.3f}")
     print(f"Match Quality: {result['match_quality']}")
-    print(f"Slices analyzed: {result['num_slices_obj1']} vs {result['num_slices_obj2']}")
+    print(
+        f"Slices analyzed: {result['num_slices_obj1']} vs {result['num_slices_obj2']}"
+    )
     print(f"{'='*50}\n")
 
     return result

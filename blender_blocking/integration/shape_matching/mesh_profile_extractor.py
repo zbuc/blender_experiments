@@ -9,20 +9,31 @@ Usage:
     combined = combine_profiles(profiles, method='median')
 """
 
-import bpy
-import bmesh
-from mathutils import Vector, Matrix
+from __future__ import annotations
+
+try:
+    import bpy
+    import bmesh
+    from mathutils import Vector, Matrix
+
+    BLENDER_AVAILABLE = True
+except ImportError:
+    bpy = None
+    bmesh = None
+    Vector = None
+    Matrix = None
+    BLENDER_AVAILABLE = False
 import math
 import numpy as np
-from typing import List, Tuple, Dict, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 def extract_profile_at_angle(
-    mesh_obj,
+    mesh_obj: bpy.types.Object,
     angle_degrees: float,
     num_samples: int = 20,
     bounds_min: Optional[Vector] = None,
-    bounds_max: Optional[Vector] = None
+    bounds_max: Optional[Vector] = None,
 ) -> List[Tuple[float, float]]:
     """
     Extract vertical profile from mesh at a specific angle.
@@ -42,19 +53,20 @@ def extract_profile_at_angle(
         where height is 0 (bottom) to 1 (top)
         and radius is 0 to 1 (normalized to max dimension)
     """
+    if not BLENDER_AVAILABLE:
+        raise RuntimeError("Blender API not available for profile extraction")
+    if num_samples <= 0:
+        raise ValueError("num_samples must be >= 1")
+
     # Get mesh bounds
     if bounds_min is None or bounds_max is None:
         bbox = [mesh_obj.matrix_world @ Vector(corner) for corner in mesh_obj.bound_box]
-        calc_min = Vector((
-            min(v.x for v in bbox),
-            min(v.y for v in bbox),
-            min(v.z for v in bbox)
-        ))
-        calc_max = Vector((
-            max(v.x for v in bbox),
-            max(v.y for v in bbox),
-            max(v.z for v in bbox)
-        ))
+        calc_min = Vector(
+            (min(v.x for v in bbox), min(v.y for v in bbox), min(v.z for v in bbox))
+        )
+        calc_max = Vector(
+            (max(v.x for v in bbox), max(v.y for v in bbox), max(v.z for v in bbox))
+        )
         bounds_min = bounds_min or calc_min
         bounds_max = bounds_max or calc_max
 
@@ -70,39 +82,63 @@ def extract_profile_at_angle(
     sin_a = math.sin(angle_rad)
 
     # Max radius for normalization (half of max XY dimension)
-    max_radius = max(
-        bounds_max.x - bounds_min.x,
-        bounds_max.y - bounds_min.y
-    ) / 2.0
+    max_radius = max(bounds_max.x - bounds_min.x, bounds_max.y - bounds_min.y) / 2.0
+
+    if num_samples > 1:
+        t_values = np.linspace(0.0, 1.0, num_samples)
+    else:
+        t_values = np.array([0.5])
+    z_worlds = bounds_min.z + t_values * z_range
+
+    center_xy = (
+        (bounds_min.x + bounds_max.x) / 2.0,
+        (bounds_min.y + bounds_max.y) / 2.0,
+    )
+    max_distance = max(bounds_max.x - bounds_min.x, bounds_max.y - bounds_min.y) * 1.5
+    fallback_dirs = [
+        Vector(
+            (
+                math.cos(angle_rad + (i * 2 * math.pi / 16)),
+                math.sin(angle_rad + (i * 2 * math.pi / 16)),
+                0,
+            )
+        )
+        for i in range(16)
+    ]
 
     profile = []
-
-    # Sample at multiple heights
-    for i in range(num_samples):
-        # Height position (normalized 0-1)
-        t = i / (num_samples - 1) if num_samples > 1 else 0.5
-        z_world = bounds_min.z + t * z_range
-
-        # Measure radius at this height from the given angle
+    for t, z_world in zip(t_values, z_worlds):
         radius = _measure_radius_at_height(
-            mesh_obj, z_world, angle_rad, cos_a, sin_a, bounds_min, bounds_max
+            mesh_obj,
+            float(z_world),
+            angle_rad,
+            cos_a,
+            sin_a,
+            bounds_min,
+            bounds_max,
+            center_xy=center_xy,
+            max_distance=max_distance,
+            fallback_dirs=fallback_dirs,
         )
 
-        # Normalize radius
         radius_normalized = radius / max_radius if max_radius > 0 else 0.0
-        profile.append((t, radius_normalized))
+        profile.append((float(t), float(radius_normalized)))
 
     return profile
 
 
 def _measure_radius_at_height(
-    mesh_obj,
+    mesh_obj: bpy.types.Object,
     z_height: float,
     angle_rad: float,
     cos_a: float,
     sin_a: float,
     bounds_min: Vector,
-    bounds_max: Vector
+    bounds_max: Vector,
+    *,
+    center_xy: Optional[Tuple[float, float]] = None,
+    max_distance: Optional[float] = None,
+    fallback_dirs: Optional[List[Vector]] = None,
 ) -> float:
     """
     Measure radius of mesh cross-section at given height and angle.
@@ -121,9 +157,14 @@ def _measure_radius_at_height(
     Returns:
         Measured radius at this height
     """
+    if not BLENDER_AVAILABLE:
+        raise RuntimeError("Blender API not available for profile extraction")
     # Center point at this height
-    center_x = (bounds_min.x + bounds_max.x) / 2.0
-    center_y = (bounds_min.y + bounds_max.y) / 2.0
+    if center_xy is None:
+        center_x = (bounds_min.x + bounds_max.x) / 2.0
+        center_y = (bounds_min.y + bounds_max.y) / 2.0
+    else:
+        center_x, center_y = center_xy
     center = Vector((center_x, center_y, z_height))
 
     # Direction perpendicular to viewing angle (for radius measurement)
@@ -131,10 +172,10 @@ def _measure_radius_at_height(
     perp_direction = Vector((cos_a, sin_a, 0))
 
     # Cast ray outward from center to find edge
-    max_distance = max(
-        bounds_max.x - bounds_min.x,
-        bounds_max.y - bounds_min.y
-    ) * 1.5  # Extra margin
+    if max_distance is None:
+        max_distance = (
+            max(bounds_max.x - bounds_min.x, bounds_max.y - bounds_min.y) * 1.5
+        )  # Extra margin
 
     # Cast ray in both directions (positive and negative perpendicular)
     radius_pos = _raycast_distance(mesh_obj, center, perp_direction, max_distance)
@@ -145,33 +186,65 @@ def _measure_radius_at_height(
 
     # Fallback: if no hit, try sampling around the circle
     if radius < 0.001:
-        radius = _sample_circular_radius(mesh_obj, center, angle_rad, max_distance)
+        radius = _sample_circular_radius(
+            mesh_obj,
+            center,
+            angle_rad,
+            max_distance,
+            directions=fallback_dirs,
+        )
 
     return radius
 
 
-def _raycast_distance(mesh_obj, origin: Vector, direction: Vector, max_distance: float) -> float:
+def _raycast_distance(
+    mesh_obj: bpy.types.Object, origin: Vector, direction: Vector, max_distance: float
+) -> float:
     """Cast ray and return distance to first hit."""
-    result, location, normal, index = mesh_obj.ray_cast(origin, direction, distance=max_distance)
+    if not BLENDER_AVAILABLE:
+        raise RuntimeError("Blender API not available for raycast")
+    from integration.blender_ops.raycast_utils import ray_cast_world
+
+    result, location, normal, index = ray_cast_world(
+        mesh_obj, origin, direction, max_distance
+    )
 
     if result:
         return (location - origin).length
     return 0.0
 
 
-def _sample_circular_radius(mesh_obj, center: Vector, base_angle: float, max_distance: float) -> float:
+def _sample_circular_radius(
+    mesh_obj: bpy.types.Object,
+    center: Vector,
+    base_angle: float,
+    max_distance: float,
+    *,
+    directions: Optional[List[Vector]] = None,
+) -> float:
     """
     Sample radius by casting rays in multiple directions around a circle.
 
     Fallback method when single raycast doesn't hit.
     """
+    if not BLENDER_AVAILABLE:
+        raise RuntimeError("Blender API not available for radius sampling")
     num_rays = 16
     max_radius = 0.0
 
-    for i in range(num_rays):
-        angle = base_angle + (i * 2 * math.pi / num_rays)
-        direction = Vector((math.cos(angle), math.sin(angle), 0))
+    if directions is None:
+        directions = [
+            Vector(
+                (
+                    math.cos(base_angle + (i * 2 * math.pi / num_rays)),
+                    math.sin(base_angle + (i * 2 * math.pi / num_rays)),
+                    0,
+                )
+            )
+            for i in range(num_rays)
+        ]
 
+    for direction in directions:
         distance = _raycast_distance(mesh_obj, center, direction, max_distance)
         max_radius = max(max_radius, distance)
 
@@ -179,11 +252,11 @@ def _sample_circular_radius(mesh_obj, center: Vector, base_angle: float, max_dis
 
 
 def extract_multi_angle_profiles(
-    mesh_obj,
+    mesh_obj: bpy.types.Object,
     num_angles: int = 12,
     num_heights: int = 20,
     bounds_min: Optional[Vector] = None,
-    bounds_max: Optional[Vector] = None
+    bounds_max: Optional[Vector] = None,
 ) -> List[List[Tuple[float, float]]]:
     """
     Extract vertical profiles at multiple angles around the object.
@@ -198,27 +271,85 @@ def extract_multi_angle_profiles(
     Returns:
         List of profiles, each profile is a list of (height, radius) tuples
     """
-    profiles = []
+    if not BLENDER_AVAILABLE:
+        raise RuntimeError("Blender API not available for profile extraction")
+    if num_angles <= 0:
+        raise ValueError("num_angles must be >= 1")
+    if num_heights <= 0:
+        raise ValueError("num_heights must be >= 1")
 
+    # Compute bounds once for all angles
+    if bounds_min is None or bounds_max is None:
+        bbox = [mesh_obj.matrix_world @ Vector(corner) for corner in mesh_obj.bound_box]
+        calc_min = Vector(
+            (min(v.x for v in bbox), min(v.y for v in bbox), min(v.z for v in bbox))
+        )
+        calc_max = Vector(
+            (max(v.x for v in bbox), max(v.y for v in bbox), max(v.z for v in bbox))
+        )
+        bounds_min = bounds_min or calc_min
+        bounds_max = bounds_max or calc_max
+
+    z_min, z_max = bounds_min.z, bounds_max.z
+    z_range = z_max - z_min
+    if z_range <= 0:
+        return [[(0.5, 0.0)] for _ in range(num_angles)]
+
+    if num_heights > 1:
+        t_values = np.linspace(0.0, 1.0, num_heights)
+    else:
+        t_values = np.array([0.5])
+    z_worlds = bounds_min.z + t_values * z_range
+
+    center_xy = (
+        (bounds_min.x + bounds_max.x) / 2.0,
+        (bounds_min.y + bounds_max.y) / 2.0,
+    )
+    max_radius = max(bounds_max.x - bounds_min.x, bounds_max.y - bounds_min.y) / 2.0
+    max_distance = max(bounds_max.x - bounds_min.x, bounds_max.y - bounds_min.y) * 1.5
+
+    profiles = []
     angle_step = 360.0 / num_angles
 
     for i in range(num_angles):
         angle = i * angle_step
-        profile = extract_profile_at_angle(
-            mesh_obj,
-            angle_degrees=angle,
-            num_samples=num_heights,
-            bounds_min=bounds_min,
-            bounds_max=bounds_max
-        )
+        angle_rad = math.radians(angle)
+        cos_a = math.cos(angle_rad)
+        sin_a = math.sin(angle_rad)
+        fallback_dirs = [
+            Vector(
+                (
+                    math.cos(angle_rad + (j * 2 * math.pi / 16)),
+                    math.sin(angle_rad + (j * 2 * math.pi / 16)),
+                    0,
+                )
+            )
+            for j in range(16)
+        ]
+
+        profile = []
+        for t, z_world in zip(t_values, z_worlds):
+            radius = _measure_radius_at_height(
+                mesh_obj,
+                float(z_world),
+                angle_rad,
+                cos_a,
+                sin_a,
+                bounds_min,
+                bounds_max,
+                center_xy=center_xy,
+                max_distance=max_distance,
+                fallback_dirs=fallback_dirs,
+            )
+            radius_normalized = radius / max_radius if max_radius > 0 else 0.0
+            profile.append((float(t), float(radius_normalized)))
         profiles.append(profile)
 
     return profiles
 
 
 def combine_profiles(
-    profiles: List[List[Tuple[float, float]]],
-    method: str = 'median'
+    profiles: List[List[Tuple[float, float]]], method: str = "median"
 ) -> List[Tuple[float, float]]:
     """
     Combine multiple profiles into a single averaged profile.
@@ -237,39 +368,33 @@ def combine_profiles(
         return profiles[0]
 
     # Assume all profiles have same number of samples
-    num_samples = len(profiles[0])
+    lengths = {len(profile) for profile in profiles}
+    if len(lengths) != 1:
+        raise ValueError("Profiles must all have the same number of samples")
 
-    combined = []
+    values = np.asarray(profiles, dtype=np.float64)
+    heights = values[0, :, 0]
+    radii = values[:, :, 1]
 
-    for i in range(num_samples):
-        # Get height from first profile (should be same for all)
-        height = profiles[0][i][0]
+    if method == "mean":
+        combined_radii = np.mean(radii, axis=0)
+    elif method == "median":
+        combined_radii = np.median(radii, axis=0)
+    elif method == "min":
+        combined_radii = np.min(radii, axis=0)
+    elif method == "max":
+        combined_radii = np.max(radii, axis=0)
+    else:
+        raise ValueError(f"Unknown combination method: {method}")
 
-        # Collect radii from all profiles at this height
-        radii = [profile[i][1] for profile in profiles]
-
-        # Combine using specified method
-        if method == 'mean':
-            radius = np.mean(radii)
-        elif method == 'median':
-            radius = np.median(radii)
-        elif method == 'min':
-            radius = np.min(radii)
-        elif method == 'max':
-            radius = np.max(radii)
-        else:
-            raise ValueError(f"Unknown combination method: {method}")
-
-        combined.append((height, float(radius)))
-
-    return combined
+    return [(float(h), float(r)) for h, r in zip(heights, combined_radii)]
 
 
 def visualize_profiles(
     profiles: List[List[Tuple[float, float]]],
     combined: Optional[List[Tuple[float, float]]] = None,
-    output_path: Optional[str] = None
-):
+    output_path: Optional[str] = None,
+) -> None:
     """
     Visualize multiple profiles and their combination.
 
@@ -284,6 +409,10 @@ def visualize_profiles(
         print("Warning: matplotlib not available for visualization")
         return
 
+    if not profiles:
+        print("Warning: no profiles provided for visualization")
+        return
+
     plt.figure(figsize=(10, 6))
 
     # Plot individual profiles with transparency
@@ -291,17 +420,23 @@ def visualize_profiles(
         heights = [h for h, r in profile]
         radii = [r for h, r in profile]
         angle = i * (360.0 / len(profiles))
-        plt.plot(radii, heights, alpha=0.3, color='blue', label=f'{angle}°' if i < 3 else None)
+        plt.plot(
+            radii,
+            heights,
+            alpha=0.3,
+            color="blue",
+            label=f"{angle}°" if i < 3 else None,
+        )
 
     # Plot combined profile
     if combined:
         heights = [h for h, r in combined]
         radii = [r for h, r in combined]
-        plt.plot(radii, heights, linewidth=2, color='red', label='Combined')
+        plt.plot(radii, heights, linewidth=2, color="red", label="Combined")
 
-    plt.xlabel('Radius (normalized)')
-    plt.ylabel('Height (normalized)')
-    plt.title(f'Multi-Angle Profiles ({len(profiles)} angles)')
+    plt.xlabel("Radius (normalized)")
+    plt.ylabel("Height (normalized)")
+    plt.title(f"Multi-Angle Profiles ({len(profiles)} angles)")
     plt.legend()
     plt.grid(True, alpha=0.3)
 
@@ -314,10 +449,14 @@ def visualize_profiles(
     plt.close()
 
 
-def test_multi_angle_extraction():
+def test_multi_angle_extraction() -> (
+    Tuple[List[List[Tuple[float, float]]], List[Tuple[float, float]]]
+):
     """
     Test multi-angle profile extraction on a simple cylinder.
     """
+    if not BLENDER_AVAILABLE:
+        raise RuntimeError("Blender API not available for profile extraction")
     # Create test cylinder
     bpy.ops.mesh.primitive_cylinder_add(radius=1.0, depth=2.0, location=(0, 0, 1.0))
     cylinder = bpy.context.active_object
@@ -335,7 +474,7 @@ def test_multi_angle_extraction():
         print(f"    Radius range: {min(radii):.3f} to {max(radii):.3f}")
 
     # Combine profiles
-    combined = combine_profiles(profiles, method='median')
+    combined = combine_profiles(profiles, method="median")
     print(f"\nCombined profile (median): {len(combined)} samples")
     radii = [r for h, r in combined]
     print(f"  Radius range: {min(radii):.3f} to {max(radii):.3f}")
@@ -343,6 +482,48 @@ def test_multi_angle_extraction():
     # For a perfect cylinder, all radii should be similar (~1.0 normalized)
     radius_std = np.std(radii)
     print(f"  Radius std dev: {radius_std:.4f} (should be low for cylinder)")
+
+    # Validate transformed mesh matches base profile (translation + Z-rotation)
+    bpy.ops.mesh.primitive_cylinder_add(
+        radius=1.0, depth=2.0, location=(1.5, -0.5, 0.5)
+    )
+    transformed = bpy.context.active_object
+    transformed.rotation_euler = (0.0, 0.0, math.radians(45))
+
+    transformed_profiles = extract_multi_angle_profiles(
+        transformed, num_angles=12, num_heights=10
+    )
+    transformed_combined = combine_profiles(transformed_profiles, method="median")
+
+    base_radii = [r for h, r in combined]
+    transformed_radii = [r for h, r in transformed_combined]
+
+    if len(base_radii) == len(transformed_radii):
+        diff = np.abs(np.array(base_radii) - np.array(transformed_radii))
+        print(f"  Transformed profile max diff: {diff.max():.4f}")
+        assert np.allclose(base_radii, transformed_radii, atol=1e-3)
+
+    # Invalid sampling counts should raise clear errors
+    try:
+        extract_multi_angle_profiles(cylinder, num_angles=0, num_heights=10)
+    except ValueError:
+        print("✓ num_angles=0 rejected")
+    else:
+        raise AssertionError("Expected ValueError for num_angles=0")
+
+    try:
+        extract_multi_angle_profiles(cylinder, num_angles=12, num_heights=0)
+    except ValueError:
+        print("✓ num_heights=0 rejected")
+    else:
+        raise AssertionError("Expected ValueError for num_heights=0")
+
+    try:
+        extract_profile_at_angle(cylinder, angle_degrees=0.0, num_samples=0)
+    except ValueError:
+        print("✓ num_samples=0 rejected")
+    else:
+        raise AssertionError("Expected ValueError for num_samples=0")
 
     return profiles, combined
 

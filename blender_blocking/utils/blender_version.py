@@ -4,14 +4,19 @@ Blender version detection and compatibility utilities.
 Provides version-aware API compatibility for different Blender versions.
 """
 
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional, Tuple
+
 try:
     import bpy
+
     BLENDER_AVAILABLE = True
 except ImportError:
     BLENDER_AVAILABLE = False
 
 
-def get_blender_version():
+def get_blender_version() -> Optional[Tuple[int, int, int]]:
     """
     Get Blender version as tuple.
 
@@ -23,7 +28,7 @@ def get_blender_version():
     return bpy.app.version
 
 
-def get_blender_version_string():
+def get_blender_version_string() -> Optional[str]:
     """
     Get Blender version as string.
 
@@ -35,7 +40,7 @@ def get_blender_version_string():
     return bpy.app.version_string
 
 
-def is_blender_version_at_least(major, minor=0, patch=0):
+def is_blender_version_at_least(major: int, minor: int = 0, patch: int = 0) -> bool:
     """
     Check if Blender version is at least the specified version.
 
@@ -58,7 +63,7 @@ def is_blender_version_at_least(major, minor=0, patch=0):
     return current >= required
 
 
-def get_boolean_solver():
+def get_boolean_solver() -> str:
     """
     Get appropriate boolean solver enum for current Blender version.
 
@@ -71,16 +76,36 @@ def get_boolean_solver():
     """
     if not BLENDER_AVAILABLE:
         # Default to newer version enum when not in Blender
-        return 'EXACT'
+        return "EXACT"
 
     # Blender 5.0+ removed 'FAST' solver
     if is_blender_version_at_least(5, 0, 0):
-        return 'EXACT'
+        return "EXACT"
     else:
-        return 'FAST'
+        return "FAST"
 
 
-def get_available_boolean_solvers():
+def resolve_boolean_solver(override: Optional[str]) -> str:
+    """
+    Resolve a boolean solver from an override, falling back to version-aware default.
+
+    Args:
+        override: Solver enum ("EXACT", "FLOAT", "MANIFOLD", "FAST") or "auto"/None
+
+    Returns:
+        Solver string that is valid for the current Blender version.
+    """
+    if override is None or override == "auto":
+        return get_boolean_solver()
+    if check_boolean_solver_compatibility(override):
+        return override
+    print(
+        f"Warning: Boolean solver '{override}' not available; using recommended solver."
+    )
+    return get_boolean_solver()
+
+
+def get_available_boolean_solvers() -> List[str]:
     """
     Get list of available boolean solver enums for current Blender version.
 
@@ -89,21 +114,21 @@ def get_available_boolean_solvers():
     """
     if not BLENDER_AVAILABLE:
         # Return Blender 5.0+ enums as default
-        return ['EXACT', 'FLOAT', 'MANIFOLD']
+        return ["EXACT", "FLOAT", "MANIFOLD"]
 
     try:
         # Get enum items from Blender's BooleanModifier RNA
-        solver_prop = bpy.types.BooleanModifier.bl_rna.properties['solver']
+        solver_prop = bpy.types.BooleanModifier.bl_rna.properties["solver"]
         return [item.identifier for item in solver_prop.enum_items]
     except (AttributeError, KeyError):
         # Fallback to known enums
         if is_blender_version_at_least(5, 0, 0):
-            return ['EXACT', 'FLOAT', 'MANIFOLD']
+            return ["EXACT", "FLOAT", "MANIFOLD"]
         else:
-            return ['FAST', 'EXACT']
+            return ["FAST", "EXACT"]
 
 
-def check_boolean_solver_compatibility(solver):
+def check_boolean_solver_compatibility(solver: str) -> bool:
     """
     Check if a boolean solver enum is available in current Blender version.
 
@@ -117,7 +142,7 @@ def check_boolean_solver_compatibility(solver):
     return solver in available
 
 
-def get_version_info():
+def get_version_info() -> Optional[Dict[str, Any]]:
     """
     Get comprehensive Blender version information.
 
@@ -129,18 +154,18 @@ def get_version_info():
 
     version = get_blender_version()
     return {
-        'version': version,
-        'version_string': get_blender_version_string(),
-        'major': version[0],
-        'minor': version[1],
-        'patch': version[2],
-        'is_5_or_later': is_blender_version_at_least(5, 0, 0),
-        'recommended_boolean_solver': get_boolean_solver(),
-        'available_boolean_solvers': get_available_boolean_solvers()
+        "version": version,
+        "version_string": get_blender_version_string(),
+        "major": version[0],
+        "minor": version[1],
+        "patch": version[2],
+        "is_5_or_later": is_blender_version_at_least(5, 0, 0),
+        "recommended_boolean_solver": get_boolean_solver(),
+        "available_boolean_solvers": get_available_boolean_solvers(),
     }
 
 
-def print_version_info():
+def print_version_info() -> None:
     """Print Blender version information to console."""
     info = get_version_info()
 
@@ -152,7 +177,9 @@ def print_version_info():
     print(f"  Version: {info['version_string']} ({info['version']})")
     print(f"  Blender 5.0+: {info['is_5_or_later']}")
     print(f"  Recommended boolean solver: {info['recommended_boolean_solver']}")
-    print(f"  Available boolean solvers: {', '.join(info['available_boolean_solvers'])}")
+    print(
+        f"  Available boolean solvers: {', '.join(info['available_boolean_solvers'])}"
+    )
 
 
 if __name__ == "__main__":

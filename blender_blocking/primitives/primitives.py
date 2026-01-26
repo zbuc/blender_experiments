@@ -5,15 +5,17 @@ This module provides functions to programmatically spawn basic primitives
 (cube, sphere, cylinder, cone, torus) with configurable size, position, and rotation.
 """
 
+from __future__ import annotations
+
 import bpy
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 
 def spawn_cube(
     size: float = 2.0,
     location: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     rotation: Tuple[float, float, float] = (0.0, 0.0, 0.0),
-    name: Optional[str] = None
+    name: Optional[str] = None,
 ) -> bpy.types.Object:
     """
     Spawn a cube primitive.
@@ -40,7 +42,7 @@ def spawn_sphere(
     rotation: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     segments: int = 32,
     ring_count: int = 16,
-    name: Optional[str] = None
+    name: Optional[str] = None,
 ) -> bpy.types.Object:
     """
     Spawn a UV sphere primitive.
@@ -61,7 +63,7 @@ def spawn_sphere(
         location=location,
         rotation=rotation,
         segments=segments,
-        ring_count=ring_count
+        ring_count=ring_count,
     )
     obj = bpy.context.active_object
     if name:
@@ -75,7 +77,7 @@ def spawn_cylinder(
     location: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     rotation: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     vertices: int = 32,
-    name: Optional[str] = None
+    name: Optional[str] = None,
 ) -> bpy.types.Object:
     """
     Spawn a cylinder primitive.
@@ -96,7 +98,7 @@ def spawn_cylinder(
         depth=depth,
         location=location,
         rotation=rotation,
-        vertices=vertices
+        vertices=vertices,
     )
     obj = bpy.context.active_object
     if name:
@@ -111,7 +113,7 @@ def spawn_cone(
     location: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     rotation: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     vertices: int = 32,
-    name: Optional[str] = None
+    name: Optional[str] = None,
 ) -> bpy.types.Object:
     """
     Spawn a cone primitive.
@@ -134,7 +136,7 @@ def spawn_cone(
         depth=depth,
         location=location,
         rotation=rotation,
-        vertices=vertices
+        vertices=vertices,
     )
     obj = bpy.context.active_object
     if name:
@@ -149,7 +151,7 @@ def spawn_torus(
     rotation: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     major_segments: int = 48,
     minor_segments: int = 12,
-    name: Optional[str] = None
+    name: Optional[str] = None,
 ) -> bpy.types.Object:
     """
     Spawn a torus primitive.
@@ -172,7 +174,7 @@ def spawn_torus(
         location=location,
         rotation=rotation,
         major_segments=major_segments,
-        minor_segments=minor_segments
+        minor_segments=minor_segments,
     )
     obj = bpy.context.active_object
     if name:
@@ -187,7 +189,7 @@ def spawn_superfrustum(
     location: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     rotation: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     vertices: int = 32,
-    name: Optional[str] = None
+    name: Optional[str] = None,
 ) -> bpy.types.Object:
     """
     Spawn a SuperFrustum primitive (generalized frustum/truncated cone).
@@ -216,7 +218,7 @@ def spawn_superfrustum(
         depth=height,
         location=location,
         rotation=rotation,
-        vertices=vertices
+        vertices=vertices,
     )
     obj = bpy.context.active_object
     if name:

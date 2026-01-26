@@ -12,14 +12,17 @@ Usage:
     /Applications/Blender.app/Contents/MacOS/Blender --background --python test_ground_truth_iou.py
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 import time
 import pickle
+from typing import Optional, Tuple
 
 # Add to path
 sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path.home() / 'blender_python_packages'))
+sys.path.insert(0, str(Path.home() / "blender_python_packages"))
 
 import bpy
 import numpy as np
@@ -27,37 +30,39 @@ from mathutils import Vector
 
 from integration.image_processing.image_loader import load_multi_view_auto
 from integration.multi_view.visual_hull import MultiViewVisualHull
+from integration.blender_ops.raycast_utils import ray_cast_world
 
 
-def clear_scene():
+def clear_scene() -> None:
     """Remove all objects from scene."""
-    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete()
 
 
-def create_vase():
+def create_vase() -> bpy.types.Object:
     """Create the same vase used for turntable generation."""
     # Create cylinder
-    bpy.ops.mesh.primitive_cylinder_add(
-        radius=0.5,
-        depth=2.0,
-        location=(0, 0, 0)
-    )
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.5, depth=2.0, location=(0, 0, 0))
     vase = bpy.context.active_object
 
     # Enter edit mode and taper
-    bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
 
     # Simple scaling to create vase-like shape
     bpy.ops.transform.resize(value=(1.2, 1.2, 1.0), constraint_axis=(True, True, False))
 
-    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.mode_set(mode="OBJECT")
 
     return vase
 
 
-def voxelize_mesh(mesh_obj, resolution=128, bounds_min=None, bounds_max=None):
+def voxelize_mesh(
+    mesh_obj: bpy.types.Object,
+    resolution: int = 128,
+    bounds_min: Optional[np.ndarray] = None,
+    bounds_max: Optional[np.ndarray] = None,
+) -> np.ndarray:
     """
     Voxelize a Blender mesh object.
 
@@ -87,7 +92,8 @@ def voxelize_mesh(mesh_obj, resolution=128, bounds_min=None, bounds_max=None):
 
     # For each voxel center, check if inside mesh
     start_time = time.time()
-    total_voxels = resolution ** 3
+    total_voxels = resolution**3
+    progress_every = max(total_voxels // 10, 1)
     voxels_checked = 0
     voxels_inside = 0
 
@@ -108,10 +114,11 @@ def voxelize_mesh(mesh_obj, resolution=128, bounds_min=None, bounds_max=None):
 
                 for ray_dir in [(1, 0, 0), (0, 1, 0), (0, 0, 1)]:
                     direction = Vector(ray_dir)
-                    result, location, normal, index = mesh_obj.ray_cast(
+                    result, location, normal, index = ray_cast_world(
+                        mesh_obj,
                         point - direction * 10,  # Start from far away
                         direction,
-                        distance=20.0  # Long enough to traverse bounds
+                        20.0,  # Long enough to traverse bounds
                     )
 
                     if result:
@@ -125,9 +132,11 @@ def voxelize_mesh(mesh_obj, resolution=128, bounds_min=None, bounds_max=None):
                 voxels_checked += 1
 
                 # Progress update every 10%
-                if voxels_checked % (total_voxels // 10) == 0:
+                if voxels_checked % progress_every == 0:
                     progress = 100 * voxels_checked / total_voxels
-                    print(f"  Progress: {progress:.0f}% ({voxels_inside:,} voxels inside)")
+                    print(
+                        f"  Progress: {progress:.0f}% ({voxels_inside:,} voxels inside)"
+                    )
 
     elapsed = time.time() - start_time
     occupancy = voxels_inside / total_voxels
@@ -139,7 +148,7 @@ def voxelize_mesh(mesh_obj, resolution=128, bounds_min=None, bounds_max=None):
     return voxel_grid
 
 
-def load_image_as_silhouette(image_path):
+def load_image_as_silhouette(image_path: Path) -> np.ndarray:
     """Load image and convert to binary silhouette."""
     from integration.image_processing.image_loader import load_image
 
@@ -155,11 +164,13 @@ def load_image_as_silhouette(image_path):
     return silhouette
 
 
-def reconstruct_3view(front_path, side_path, top_path, resolution=128):
+def reconstruct_3view(
+    front_path: Path, side_path: Path, top_path: Path, resolution: int = 128
+) -> Tuple[np.ndarray, float]:
     """Reconstruct using 3-view baseline."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("3-VIEW BASELINE RECONSTRUCTION")
-    print("="*70)
+    print("=" * 70)
 
     # Load silhouettes
     front_silhouette = load_image_as_silhouette(front_path)
@@ -170,12 +181,12 @@ def reconstruct_3view(front_path, side_path, top_path, resolution=128):
     hull = MultiViewVisualHull(
         resolution=resolution,
         bounds_min=np.array([-2.0, -2.0, -2.0]),
-        bounds_max=np.array([2.0, 2.0, 2.0])
+        bounds_max=np.array([2.0, 2.0, 2.0]),
     )
 
-    hull.add_view_from_silhouette(front_silhouette, angle=0.0, view_type='lateral')
-    hull.add_view_from_silhouette(side_silhouette, angle=90.0, view_type='lateral')
-    hull.add_view_from_silhouette(top_silhouette, view_type='top')
+    hull.add_view_from_silhouette(front_silhouette, angle=0.0, view_type="lateral")
+    hull.add_view_from_silhouette(side_silhouette, angle=90.0, view_type="lateral")
+    hull.add_view_from_silhouette(top_silhouette, view_type="top")
 
     print(f"\n✓ Added 3 views")
 
@@ -192,14 +203,18 @@ def reconstruct_3view(front_path, side_path, top_path, resolution=128):
     return voxel_grid, processing_time
 
 
-def reconstruct_12view(turntable_dir, resolution=128):
+def reconstruct_12view(
+    turntable_dir: Path, resolution: int = 128
+) -> Tuple[np.ndarray, float]:
     """Reconstruct using 12-view turntable."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("12-VIEW ENHANCED RECONSTRUCTION")
-    print("="*70)
+    print("=" * 70)
 
     # Load multi-view sequence
-    views_dict = load_multi_view_auto(str(turntable_dir), num_views=12, include_top=True)
+    views_dict = load_multi_view_auto(
+        str(turntable_dir), num_views=12, include_top=True
+    )
 
     print(f"\n✓ Loaded {len(views_dict)} views")
 
@@ -207,7 +222,7 @@ def reconstruct_12view(turntable_dir, resolution=128):
     hull = MultiViewVisualHull(
         resolution=resolution,
         bounds_min=np.array([-2.0, -2.0, -2.0]),
-        bounds_max=np.array([2.0, 2.0, 2.0])
+        bounds_max=np.array([2.0, 2.0, 2.0]),
     )
 
     # Add all views
@@ -233,7 +248,7 @@ def reconstruct_12view(turntable_dir, resolution=128):
     return voxel_grid, processing_time
 
 
-def compute_iou(voxel_grid_a, voxel_grid_b):
+def compute_iou(voxel_grid_a: np.ndarray, voxel_grid_b: np.ndarray) -> float:
     """Compute IoU between two voxel grids."""
     intersection = np.logical_and(voxel_grid_a, voxel_grid_b).sum()
     union = np.logical_or(voxel_grid_a, voxel_grid_b).sum()
@@ -244,11 +259,11 @@ def compute_iou(voxel_grid_a, voxel_grid_b):
     return intersection / union
 
 
-def main():
+def main() -> int:
     """Run ground truth IoU validation."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("GROUND TRUTH IoU VALIDATION")
-    print("="*70)
+    print("=" * 70)
     print("\nObjective: Validate 3-view and 12-view IoU against ground truth")
     print("Expected: 3-view ~0.875, 12-view 0.88-0.92")
 
@@ -270,9 +285,9 @@ def main():
         return 1
 
     # Create ground truth mesh
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("STEP 1: Create Ground Truth Voxel Grid")
-    print("="*70)
+    print("=" * 70)
 
     clear_scene()
     vase = create_vase()
@@ -284,32 +299,30 @@ def main():
     # Save ground truth for later use
     cache_path = Path("test_output/ground_truth_voxels.pkl")
     cache_path.parent.mkdir(exist_ok=True)
-    with open(cache_path, 'wb') as f:
+    with open(cache_path, "wb") as f:
         pickle.dump(ground_truth_grid, f)
     print(f"\n✓ Saved ground truth to {cache_path}")
 
     # Reconstruct with 3-view
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("STEP 2: 3-View Reconstruction")
-    print("="*70)
+    print("=" * 70)
 
     voxel_3view, time_3view = reconstruct_3view(
         front_path, side_path, top_path, resolution=resolution
     )
 
     # Reconstruct with 12-view
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("STEP 3: 12-View Reconstruction")
-    print("="*70)
+    print("=" * 70)
 
-    voxel_12view, time_12view = reconstruct_12view(
-        turntable_dir, resolution=resolution
-    )
+    voxel_12view, time_12view = reconstruct_12view(turntable_dir, resolution=resolution)
 
     # Compute IoU scores
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("STEP 4: Compute IoU vs Ground Truth")
-    print("="*70)
+    print("=" * 70)
 
     iou_3view = compute_iou(voxel_3view, ground_truth_grid)
     iou_12view = compute_iou(voxel_12view, ground_truth_grid)
@@ -321,9 +334,9 @@ def main():
     print(f"  3-view vs 12-view:       {iou_between:.4f}")
 
     # Final results
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("FINAL RESULTS")
-    print("="*70)
+    print("=" * 70)
 
     print(f"\nGround Truth:")
     print(f"  Occupied voxels: {ground_truth_grid.sum():,}")
@@ -345,9 +358,9 @@ def main():
     print(f"  Time cost: {time_12view/time_3view:.2f}x")
 
     # Validation
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("VALIDATION")
-    print("="*70)
+    print("=" * 70)
 
     if iou_12view >= 0.88 and iou_12view <= 0.92:
         print(f"\n✓ SUCCESS: 12-view IoU {iou_12view:.4f} is within target (0.88-0.92)")
@@ -366,9 +379,9 @@ def main():
     else:
         print(f"⚠ Processing time {time_12view:.1f}s exceeds target (80s)")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST COMPLETE")
-    print("="*70)
+    print("=" * 70)
 
     return 0
 

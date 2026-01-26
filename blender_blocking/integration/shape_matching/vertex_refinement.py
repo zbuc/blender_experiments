@@ -6,16 +6,22 @@ by matching silhouette boundaries extracted from reference images.
 QA Iteration 3: Vertex-level refinement after subdivision.
 """
 
+from __future__ import annotations
+
 import math
+from typing import List, Optional, Tuple
 
 try:
     import bpy
+
     BLENDER_AVAILABLE = True
 except ImportError:
     BLENDER_AVAILABLE = False
 
 
-def interpolate_profile(profile, z_normalized):
+def interpolate_profile(
+    profile: List[Tuple[float, float]], z_normalized: float
+) -> float:
     """
     Interpolate radius from vertical profile at given normalized height.
 
@@ -53,11 +59,11 @@ def interpolate_profile(profile, z_normalized):
 
 
 def refine_mesh_to_silhouettes(
-    mesh_obj,
-    front_silhouette=None,
-    side_silhouette=None,
-    subdivision_levels=1
-):
+    mesh_obj: bpy.types.Object,
+    front_silhouette: Optional[object] = None,
+    side_silhouette: Optional[object] = None,
+    subdivision_levels: int = 1,
+) -> bpy.types.Object:
     """
     Refine mesh vertices to match reference silhouette boundaries.
 
@@ -90,10 +96,10 @@ def refine_mesh_to_silhouettes(
     print(f"  Initial vertices: {len(mesh_obj.data.vertices)}")
 
     # Add subdivision modifier
-    subsurf = mesh_obj.modifiers.new(name="Subdivision", type='SUBSURF')
+    subsurf = mesh_obj.modifiers.new(name="Subdivision", type="SUBSURF")
     subsurf.levels = subdivision_levels
     subsurf.render_levels = subdivision_levels
-    subsurf.subdivision_type = 'CATMULL_CLARK'
+    subsurf.subdivision_type = "CATMULL_CLARK"
 
     # Apply modifier
     bpy.context.view_layer.objects.active = mesh_obj
@@ -110,18 +116,22 @@ def refine_mesh_to_silhouettes(
     if front_silhouette is not None:
         try:
             front_profile = extract_vertical_profile(front_silhouette, num_samples=100)
-            profiles['front'] = front_profile
+            profiles["front"] = front_profile
             radii = [r for h, r in front_profile]
-            print(f"  Front profile: {len(front_profile)} samples, radius range {min(radii):.3f}-{max(radii):.3f}")
+            print(
+                f"  Front profile: {len(front_profile)} samples, radius range {min(radii):.3f}-{max(radii):.3f}"
+            )
         except Exception as e:
             print(f"  Warning: Could not extract front profile: {e}")
 
     if side_silhouette is not None:
         try:
             side_profile = extract_vertical_profile(side_silhouette, num_samples=100)
-            profiles['side'] = side_profile
+            profiles["side"] = side_profile
             radii = [r for h, r in side_profile]
-            print(f"  Side profile: {len(side_profile)} samples, radius range {min(radii):.3f}-{max(radii):.3f}")
+            print(
+                f"  Side profile: {len(side_profile)} samples, radius range {min(radii):.3f}-{max(radii):.3f}"
+            )
         except Exception as e:
             print(f"  Warning: Could not extract side profile: {e}")
 
@@ -167,7 +177,7 @@ def refine_mesh_to_silhouettes(
         z_normalized = (z - z_min) / z_range
 
         # Current radius from origin
-        current_radius = math.sqrt(x*x + y*y)
+        current_radius = math.sqrt(x * x + y * y)
 
         # Handle center vertices (zero radius)
         if current_radius < 0.001:
@@ -177,17 +187,23 @@ def refine_mesh_to_silhouettes(
         # Profile values are 0-1 normalized, need to scale to mesh dimensions
         target_radii_normalized = []
 
-        if 'front' in profiles:
-            target_radii_normalized.append(interpolate_profile(profiles['front'], z_normalized))
+        if "front" in profiles:
+            target_radii_normalized.append(
+                interpolate_profile(profiles["front"], z_normalized)
+            )
 
-        if 'side' in profiles:
-            target_radii_normalized.append(interpolate_profile(profiles['side'], z_normalized))
+        if "side" in profiles:
+            target_radii_normalized.append(
+                interpolate_profile(profiles["side"], z_normalized)
+            )
 
         if not target_radii_normalized:
             continue
 
         # Average normalized radii and convert to actual mesh radius
-        target_radius_normalized = sum(target_radii_normalized) / len(target_radii_normalized)
+        target_radius_normalized = sum(target_radii_normalized) / len(
+            target_radii_normalized
+        )
         target_radius = target_radius_normalized * max_mesh_radius
 
         # Calculate scale factor

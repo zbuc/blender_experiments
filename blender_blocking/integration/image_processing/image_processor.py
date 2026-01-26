@@ -1,8 +1,49 @@
 """Image processing utilities for edge detection and normalization."""
 
+from __future__ import annotations
+
 import numpy as np
 import cv2
-from typing import Tuple
+
+
+def _to_gray_uint8(image: np.ndarray, prefer_alpha: bool = True) -> np.ndarray:
+    """
+    Convert an image to grayscale uint8, preferring alpha when available.
+
+    Args:
+        image: Input image array
+        prefer_alpha: Whether to use alpha channel when present and meaningful
+
+    Returns:
+        Grayscale uint8 image
+    """
+    if image is None:
+        raise ValueError("image is required")
+
+    if image.ndim == 2:
+        gray = image
+    elif image.ndim == 3:
+        if image.shape[2] == 4:
+            alpha = image[:, :, 3]
+            if prefer_alpha and np.ptp(alpha) > 0:
+                gray = alpha
+            else:
+                gray = cv2.cvtColor(image[:, :, :3], cv2.COLOR_RGB2GRAY)
+        elif image.shape[2] == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        else:
+            raise ValueError(f"Unsupported channel count: {image.shape[2]}")
+    else:
+        raise ValueError(f"Unsupported image shape: {image.shape}")
+
+    if gray.dtype != np.uint8:
+        max_val = float(np.max(gray)) if gray.size else 0.0
+        if max_val <= 1.0:
+            gray = (gray.astype(np.float32) * 255.0).clip(0, 255).astype(np.uint8)
+        else:
+            gray = np.clip(gray, 0, 255).astype(np.uint8)
+
+    return gray
 
 
 def normalize_image(image: np.ndarray) -> np.ndarray:
@@ -15,9 +56,7 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
     Returns:
         Normalized image
     """
-    if len(image.shape) == 3 and image.shape[2] == 3:
-        # Convert to grayscale if color
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    image = _to_gray_uint8(image, prefer_alpha=True)
 
     # Normalize to 0-255
     normalized = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)
@@ -25,9 +64,7 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
 
 
 def extract_edges(
-    image: np.ndarray,
-    low_threshold: int = 50,
-    high_threshold: int = 150
+    image: np.ndarray, low_threshold: int = 50, high_threshold: int = 150
 ) -> np.ndarray:
     """
     Extract edges from image using Canny edge detection.
@@ -40,11 +77,7 @@ def extract_edges(
     Returns:
         Edge map as binary image
     """
-    # Ensure grayscale
-    if len(image.shape) == 3:
-        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    else:
-        gray = image.copy()
+    gray = _to_gray_uint8(image, prefer_alpha=True)
 
     # Apply Gaussian blur to reduce noise
     blurred = cv2.GaussianBlur(gray, (5, 5), 1.4)
@@ -56,9 +89,7 @@ def extract_edges(
 
 
 def process_image(
-    image: np.ndarray,
-    extract_edges_flag: bool = True,
-    normalize_flag: bool = True
+    image: np.ndarray, extract_edges_flag: bool = True, normalize_flag: bool = True
 ) -> np.ndarray:
     """
     Process image with normalization and optional edge extraction.

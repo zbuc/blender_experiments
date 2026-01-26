@@ -9,8 +9,10 @@ References:
 - https://iquilezles.org/articles/distfunctions/
 """
 
+from __future__ import annotations
+
 import numpy as np
-from typing import Tuple, Optional
+from typing import Dict, Tuple
 import math
 
 
@@ -38,8 +40,8 @@ class SuperFrustum:
         orientation: Tuple[float, float] = (0.0, 0.0),  # (theta, phi) in radians
         radius_bottom: float = 1.0,
         radius_top: float = 0.5,
-        height: float = 2.0
-    ):
+        height: float = 2.0,
+    ) -> None:
         """
         Initialize SuperFrustum.
 
@@ -72,6 +74,140 @@ class SuperFrustum:
         y = np.sin(phi) * np.sin(theta)
         z = np.cos(phi)
         return np.array([x, y, z], dtype=np.float64)
+
+    @staticmethod
+    def _rotation_matrix_to_z(axis: np.ndarray) -> np.ndarray:
+        """Return a rotation matrix that aligns the given axis with +Z."""
+        z_axis = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+        axis = axis / np.linalg.norm(axis)
+
+        if np.allclose(axis, z_axis):
+            return np.eye(3, dtype=np.float64)
+
+        if np.allclose(axis, -z_axis):
+            return np.array(
+                [
+                    [1.0, 0.0, 0.0],
+                    [0.0, -1.0, 0.0],
+                    [0.0, 0.0, -1.0],
+                ],
+                dtype=np.float64,
+            )
+
+        rot_axis = np.cross(axis, z_axis)
+        rot_axis = rot_axis / np.linalg.norm(rot_axis)
+        cos_angle = np.clip(np.dot(axis, z_axis), -1.0, 1.0)
+        angle = np.arccos(cos_angle)
+
+        kx, ky, kz = rot_axis
+        k_mat = np.array(
+            [
+                [0.0, -kz, ky],
+                [kz, 0.0, -kx],
+                [-ky, kx, 0.0],
+            ],
+            dtype=np.float64,
+        )
+        eye = np.eye(3, dtype=np.float64)
+        return eye + math.sin(angle) * k_mat + (1.0 - math.cos(angle)) * (k_mat @ k_mat)
+
+    def sdf_batch(self, points: np.ndarray) -> np.ndarray:
+        """Compute SDF for a batch of points (Nx3)."""
+        points = np.asarray(points, dtype=np.float64)
+        if points.size == 0:
+            return np.zeros((0,), dtype=np.float64)
+        if points.ndim != 2 or points.shape[1] != 3:
+            raise ValueError("points must have shape (N, 3)")
+
+        p = points - self.position[None, :]
+        axis = self.get_axis_vector()
+        rot = self._rotation_matrix_to_z(axis)
+        p_local = p @ rot.T
+
+        r1 = self.radius_bottom
+        r2 = self.radius_top
+        h = self.height / 2.0
+
+        p_cone = p_local + np.array([0.0, 0.0, h], dtype=np.float64)
+        q0 = np.linalg.norm(p_cone[:, :2], axis=1)
+        q1 = p_cone[:, 2]
+        q = np.stack([q0, q1], axis=1)
+
+        k1 = np.array([r2, self.height], dtype=np.float64)
+        k2 = np.array([r2 - r1, 2.0 * self.height], dtype=np.float64)
+
+        r_edge = np.where(q1 < 0.0, r1, r2)
+        ca0 = q0 - np.minimum(q0, r_edge)
+        ca1 = np.abs(q1) - self.height
+        ca = np.stack([ca0, ca1], axis=1)
+
+        dot_k2 = float(np.dot(k2, k2))
+        t = np.clip(((k1 - q) @ k2) / dot_k2, 0.0, 1.0)
+        cb = q - k1 + t[:, None] * k2
+
+        s = np.where((cb[:, 0] < 0.0) & (ca[:, 1] < 0.0), -1.0, 1.0)
+        dist = np.sqrt(np.minimum(np.sum(ca * ca, axis=1), np.sum(cb * cb, axis=1)))
+        return s * dist
+
+    def gradient_batch(
+        self, points: np.ndarray, epsilon: float = 1e-5
+    ) -> Dict[str, np.ndarray]:
+        """Compute SDF gradients for a batch of points (Nx3)."""
+        points = np.asarray(points, dtype=np.float64)
+        if points.size == 0:
+            return {
+                "sdf": np.zeros((0,), dtype=np.float64),
+                "position": np.zeros((0, 3), dtype=np.float64),
+                "orientation": np.zeros((0, 2), dtype=np.float64),
+                "radius_bottom": np.zeros((0,), dtype=np.float64),
+                "radius_top": np.zeros((0,), dtype=np.float64),
+                "height": np.zeros((0,), dtype=np.float64),
+            }
+
+        f0 = self.sdf_batch(points)
+        grads: Dict[str, np.ndarray] = {"sdf": f0}
+
+        old_pos = self.position.copy()
+        grad_pos = np.zeros((len(points), 3), dtype=np.float64)
+        for i in range(3):
+            pos_plus = old_pos.copy()
+            pos_plus[i] += epsilon
+            self.position = pos_plus
+            f_plus = self.sdf_batch(points)
+            grad_pos[:, i] = (f_plus - f0) / epsilon
+        self.position = old_pos
+        grads["position"] = grad_pos
+
+        old_orient = self.orientation.copy()
+        grad_orient = np.zeros((len(points), 2), dtype=np.float64)
+        for i in range(2):
+            orient_plus = old_orient.copy()
+            orient_plus[i] += epsilon
+            self.orientation = orient_plus
+            f_plus = self.sdf_batch(points)
+            grad_orient[:, i] = (f_plus - f0) / epsilon
+        self.orientation = old_orient
+        grads["orientation"] = grad_orient
+
+        old_rb = self.radius_bottom
+        self.radius_bottom = old_rb + epsilon
+        f_plus = self.sdf_batch(points)
+        grads["radius_bottom"] = (f_plus - f0) / epsilon
+        self.radius_bottom = old_rb
+
+        old_rt = self.radius_top
+        self.radius_top = old_rt + epsilon
+        f_plus = self.sdf_batch(points)
+        grads["radius_top"] = (f_plus - f0) / epsilon
+        self.radius_top = old_rt
+
+        old_h = self.height
+        self.height = old_h + epsilon
+        f_plus = self.sdf_batch(points)
+        grads["height"] = (f_plus - f0) / epsilon
+        self.height = old_h
+
+        return grads
 
     def sdf(self, point: np.ndarray) -> float:
         """
@@ -107,16 +243,11 @@ class SuperFrustum:
         k1 = np.array([r2, self.height])
         k2 = np.array([r2 - r1, 2.0 * self.height])
 
-        ca = np.array([
-            q[0] - min(q[0], r1 if q[1] < 0.0 else r2),
-            abs(q[1]) - self.height
-        ])
-
-        cb = q - k1 + k2 * np.clip(
-            np.dot(k1 - q, k2) / np.dot(k2, k2),
-            0.0,
-            1.0
+        ca = np.array(
+            [q[0] - min(q[0], r1 if q[1] < 0.0 else r2), abs(q[1]) - self.height]
         )
+
+        cb = q - k1 + k2 * np.clip(np.dot(k1 - q, k2) / np.dot(k2, k2), 0.0, 1.0)
 
         s = -1.0 if (cb[0] < 0.0 and ca[1] < 0.0) else 1.0
 
@@ -156,10 +287,7 @@ class SuperFrustum:
         return self._rodrigues_rotation(point, rot_axis, angle)
 
     def _rodrigues_rotation(
-        self,
-        point: np.ndarray,
-        axis: np.ndarray,
-        angle: float
+        self, point: np.ndarray, axis: np.ndarray, angle: float
     ) -> np.ndarray:
         """
         Rotate point around axis by angle using Rodrigues' formula.
@@ -178,12 +306,14 @@ class SuperFrustum:
         # Rodrigues' rotation formula
         # v_rot = v*cos(a) + (k×v)*sin(a) + k*(k·v)*(1-cos(a))
         return (
-            point * cos_a +
-            np.cross(axis, point) * sin_a +
-            axis * np.dot(axis, point) * (1.0 - cos_a)
+            point * cos_a
+            + np.cross(axis, point) * sin_a
+            + axis * np.dot(axis, point) * (1.0 - cos_a)
         )
 
-    def gradient(self, point: np.ndarray, epsilon: float = 1e-5) -> dict:
+    def gradient(
+        self, point: np.ndarray, epsilon: float = 1e-5
+    ) -> Dict[str, np.ndarray]:
         """
         Compute gradients of SDF with respect to all 8 parameters using finite differences.
 
@@ -214,7 +344,7 @@ class SuperFrustum:
             f_plus = self.sdf(point)
             self.position = old_pos
             grad_pos[i] = (f_plus - f0) / epsilon
-        grads['position'] = grad_pos
+        grads["position"] = grad_pos
 
         # Gradient w.r.t. orientation (2 parameters)
         grad_orient = np.zeros(2)
@@ -226,32 +356,32 @@ class SuperFrustum:
             f_plus = self.sdf(point)
             self.orientation = old_orient
             grad_orient[i] = (f_plus - f0) / epsilon
-        grads['orientation'] = grad_orient
+        grads["orientation"] = grad_orient
 
         # Gradient w.r.t. radius_bottom
         old_rb = self.radius_bottom
         self.radius_bottom += epsilon
         f_plus = self.sdf(point)
         self.radius_bottom = old_rb
-        grads['radius_bottom'] = (f_plus - f0) / epsilon
+        grads["radius_bottom"] = (f_plus - f0) / epsilon
 
         # Gradient w.r.t. radius_top
         old_rt = self.radius_top
         self.radius_top += epsilon
         f_plus = self.sdf(point)
         self.radius_top = old_rt
-        grads['radius_top'] = (f_plus - f0) / epsilon
+        grads["radius_top"] = (f_plus - f0) / epsilon
 
         # Gradient w.r.t. height
         old_h = self.height
         self.height += epsilon
         f_plus = self.sdf(point)
         self.height = old_h
-        grads['height'] = (f_plus - f0) / epsilon
+        grads["height"] = (f_plus - f0) / epsilon
 
         return grads
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, object]:
         """
         Export parameters as dictionary.
 
@@ -259,15 +389,15 @@ class SuperFrustum:
             Dictionary with all 8 parameters
         """
         return {
-            'position': self.position.tolist(),
-            'orientation': self.orientation.tolist(),
-            'radius_bottom': self.radius_bottom,
-            'radius_top': self.radius_top,
-            'height': self.height
+            "position": self.position.tolist(),
+            "orientation": self.orientation.tolist(),
+            "radius_bottom": self.radius_bottom,
+            "radius_top": self.radius_top,
+            "height": self.height,
         }
 
     @classmethod
-    def from_dict(cls, params: dict) -> 'SuperFrustum':
+    def from_dict(cls, params: Dict[str, object]) -> "SuperFrustum":
         """
         Create SuperFrustum from parameter dictionary.
 
@@ -278,14 +408,15 @@ class SuperFrustum:
             SuperFrustum instance
         """
         return cls(
-            position=tuple(params['position']),
-            orientation=tuple(params['orientation']),
-            radius_bottom=params['radius_bottom'],
-            radius_top=params['radius_top'],
-            height=params['height']
+            position=tuple(params["position"]),
+            orientation=tuple(params["orientation"]),
+            radius_bottom=params["radius_bottom"],
+            radius_top=params["radius_top"],
+            height=params["height"],
         )
 
     def __repr__(self) -> str:
+        """Return a compact, readable summary for debugging/logging."""
         return (
             f"SuperFrustum(pos={self.position}, "
             f"orient={self.orientation}, "

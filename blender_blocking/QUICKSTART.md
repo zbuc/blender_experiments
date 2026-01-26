@@ -4,14 +4,14 @@ Get started with the Blender automated blocking tool in minutes.
 
 ## Prerequisites
 
-- Blender 3.0 or later
+- Blender 4.2 LTS or 5.0 (tested)
 - Python 3.8+
 
 ## REQUIRED: Blender Python Setup
 
 **⚠️ YOU MUST COMPLETE THIS STEP BEFORE USING THE TOOL**
 
-The tool requires dependencies (numpy, opencv-python, Pillow, scipy) to be installed **directly into Blender's Python**. Virtual environment approaches DO NOT work due to binary compatibility issues.
+The tool requires dependencies (see `requirements.txt`) to be installed **directly into Blender's Python**. Virtual environment approaches DO NOT work due to binary compatibility issues.
 
 ### Step-by-Step Setup:
 
@@ -23,20 +23,20 @@ The tool requires dependencies (numpy, opencv-python, Pillow, scipy) to be insta
    import sys
    print(sys.executable)
    ```
-   This will print something like: `/Applications/Blender.app/Contents/Resources/4.0/python/bin/python3.11`
+   This will print something like: `/Applications/Blender.app/Contents/Resources/4.2/python/bin/python3.11`
 
 2. **Install dependencies:**
    ```bash
    # Use the path from step 1
-   /path/to/blender/python -m pip install numpy opencv-python Pillow scipy
+   /path/to/blender/python -m pip install -r /path/to/blendslop/blender_blocking/requirements.txt
    ```
 
 3. **Verify setup:**
    ```python
    # In Blender's Python Console:
    import sys
-   sys.path.insert(0, "/path/to/crew/sculptor")
-   exec(open("/path/to/crew/sculptor/blender_blocking/verify_setup.py").read())
+   sys.path.insert(0, "/path/to/blendslop")
+   exec(open("/path/to/blendslop/blender_blocking/verify_setup.py").read())
    ```
 
    You should see "✅ SETUP COMPLETE" if everything is installed correctly.
@@ -83,7 +83,7 @@ You should see:
 
 ```python
 import sys
-sys.path.insert(0, "/path/to/blender_experiments/crew/sculptor")
+sys.path.insert(0, "/path/to/blendslop")
 
 from blender_blocking.main_integration import example_workflow_no_images
 mesh = example_workflow_no_images()
@@ -103,7 +103,7 @@ cd blender_blocking
 
 ```python
 import sys
-sys.path.insert(0, "/path/to/blender_experiments/crew/sculptor")
+sys.path.insert(0, "/path/to/blendslop")
 
 from blender_blocking.main_integration import example_workflow_with_images
 
@@ -124,7 +124,7 @@ Your images should:
 
 ```python
 import sys
-sys.path.insert(0, "/path/to/blender_experiments/crew/sculptor")
+sys.path.insert(0, "/path/to/blendslop")
 
 from blender_blocking.main_integration import BlockingWorkflow
 
@@ -169,8 +169,8 @@ Run the verification script to diagnose:
 ```python
 # In Blender's Python Console:
 import sys
-sys.path.insert(0, "/path/to/crew/sculptor")
-exec(open("/path/to/crew/sculptor/blender_blocking/verify_setup.py").read())
+sys.path.insert(0, "/path/to/blendslop")
+exec(open("/path/to/blendslop/blender_blocking/verify_setup.py").read())
 ```
 
 The script will tell you exactly what's missing. Then follow the setup instructions at the top of this file.
@@ -204,7 +204,7 @@ Make sure you:
 
 - See **[BLENDER_SETUP.md](BLENDER_SETUP.md)** for Blender Python configuration options
 - See **[INTEGRATION.md](INTEGRATION.md)** for detailed API documentation
-- See **[TESTING.md](TESTING.md)** for comprehensive testing guide
+- See **[README.md](README.md#testing)** for testing commands and CI notes
 - Experiment with different reference images
 - Adjust `num_slices` for your needs
 
@@ -214,7 +214,7 @@ Complete example from scratch:
 
 ```bash
 # 1. Setup
-cd /path/to/blender_experiments/crew/sculptor/blender_blocking
+cd /path/to/blendslop/blender_blocking
 python3 -m venv venv
 ./venv/bin/python3 -m pip install -r requirements.txt
 
@@ -226,7 +226,7 @@ python3 -m venv venv
 
 ```python
 import sys
-sys.path.insert(0, "/path/to/blender_experiments/crew/sculptor")
+sys.path.insert(0, "/path/to/blendslop")
 
 from blender_blocking.main_integration import example_workflow_with_images
 

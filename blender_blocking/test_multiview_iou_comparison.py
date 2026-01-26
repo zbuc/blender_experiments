@@ -12,23 +12,26 @@ Usage:
     /Applications/Blender.app/Contents/MacOS/Blender --background --python test_multiview_iou_comparison.py
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 import time
+from typing import Tuple
 
 # Add to path
 sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path.home() / 'blender_python_packages'))
+sys.path.insert(0, str(Path.home() / "blender_python_packages"))
 
 import numpy as np
 from integration.image_processing.image_loader import (
     load_orthogonal_views,
-    load_multi_view_auto
+    load_multi_view_auto,
 )
 from integration.multi_view.visual_hull import MultiViewVisualHull
 
 
-def load_image_as_silhouette(image_path):
+def load_image_as_silhouette(image_path: Path) -> np.ndarray:
     """Load image and convert to binary silhouette."""
     from integration.image_processing.image_loader import load_image
 
@@ -44,7 +47,9 @@ def load_image_as_silhouette(image_path):
     return silhouette
 
 
-def reconstruct_3view(front_path, side_path, top_path, resolution=128):
+def reconstruct_3view(
+    front_path: Path, side_path: Path, top_path: Path, resolution: int = 128
+) -> Tuple[np.ndarray, float, dict]:
     """
     Reconstruct using 3-view baseline (front, side, top).
 
@@ -57,9 +62,9 @@ def reconstruct_3view(front_path, side_path, top_path, resolution=128):
     Returns:
         (voxel_grid, processing_time, stats)
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("3-VIEW BASELINE RECONSTRUCTION")
-    print("="*70)
+    print("=" * 70)
 
     # Load silhouettes
     print(f"\nLoading 3 views...")
@@ -77,13 +82,13 @@ def reconstruct_3view(front_path, side_path, top_path, resolution=128):
     hull = MultiViewVisualHull(
         resolution=resolution,
         bounds_min=np.array([-2.0, -2.0, -2.0]),
-        bounds_max=np.array([2.0, 2.0, 2.0])
+        bounds_max=np.array([2.0, 2.0, 2.0]),
     )
 
     # Add views (front=0°, side=90°)
-    hull.add_view_from_silhouette(front_silhouette, angle=0.0, view_type='lateral')
-    hull.add_view_from_silhouette(side_silhouette, angle=90.0, view_type='lateral')
-    hull.add_view_from_silhouette(top_silhouette, view_type='top')
+    hull.add_view_from_silhouette(front_silhouette, angle=0.0, view_type="lateral")
+    hull.add_view_from_silhouette(side_silhouette, angle=90.0, view_type="lateral")
+    hull.add_view_from_silhouette(top_silhouette, view_type="top")
 
     print(f"\n✓ Added 3 views to Visual Hull")
 
@@ -95,16 +100,20 @@ def reconstruct_3view(front_path, side_path, top_path, resolution=128):
 
     # Get stats
     stats = hull.get_stats()
-    stats['processing_time'] = processing_time
+    stats["processing_time"] = processing_time
 
     print(f"\n✓ Reconstruction complete in {processing_time:.2f}s")
-    print(f"  Occupied voxels: {stats['occupied_voxels']:,} / {stats['total_voxels']:,}")
+    print(
+        f"  Occupied voxels: {stats['occupied_voxels']:,} / {stats['total_voxels']:,}"
+    )
     print(f"  Occupancy: {stats['occupancy']*100:.2f}%")
 
     return voxel_grid, processing_time, stats
 
 
-def reconstruct_12view(turntable_dir, resolution=128):
+def reconstruct_12view(
+    turntable_dir: Path, resolution: int = 128
+) -> Tuple[np.ndarray, float, dict]:
     """
     Reconstruct using 12-view turntable sequence.
 
@@ -115,23 +124,27 @@ def reconstruct_12view(turntable_dir, resolution=128):
     Returns:
         (voxel_grid, processing_time, stats)
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("12-VIEW ENHANCED RECONSTRUCTION")
-    print("="*70)
+    print("=" * 70)
 
     # Load multi-view sequence
     print(f"\nLoading turntable sequence from: {turntable_dir}")
-    views_dict = load_multi_view_auto(str(turntable_dir), num_views=12, include_top=True)
+    views_dict = load_multi_view_auto(
+        str(turntable_dir), num_views=12, include_top=True
+    )
 
-    num_lateral = sum(1 for k in views_dict if k.startswith('lateral_'))
-    has_top = 'top' in views_dict
-    print(f"  ✓ Loaded {num_lateral} lateral views + {'1' if has_top else '0'} top view")
+    num_lateral = sum(1 for k in views_dict if k.startswith("lateral_"))
+    has_top = "top" in views_dict
+    print(
+        f"  ✓ Loaded {num_lateral} lateral views + {'1' if has_top else '0'} top view"
+    )
 
     # Create Visual Hull instance
     hull = MultiViewVisualHull(
         resolution=resolution,
         bounds_min=np.array([-2.0, -2.0, -2.0]),
-        bounds_max=np.array([2.0, 2.0, 2.0])
+        bounds_max=np.array([2.0, 2.0, 2.0]),
     )
 
     # Add all views
@@ -156,16 +169,18 @@ def reconstruct_12view(turntable_dir, resolution=128):
 
     # Get stats
     stats = hull.get_stats()
-    stats['processing_time'] = processing_time
+    stats["processing_time"] = processing_time
 
     print(f"\n✓ Reconstruction complete in {processing_time:.2f}s")
-    print(f"  Occupied voxels: {stats['occupied_voxels']:,} / {stats['total_voxels']:,}")
+    print(
+        f"  Occupied voxels: {stats['occupied_voxels']:,} / {stats['total_voxels']:,}"
+    )
     print(f"  Occupancy: {stats['occupancy']*100:.2f}%")
 
     return voxel_grid, processing_time, stats
 
 
-def estimate_iou(voxel_grid_a, voxel_grid_b):
+def estimate_iou(voxel_grid_a: np.ndarray, voxel_grid_b: np.ndarray) -> float:
     """
     Estimate IoU between two voxel grids.
 
@@ -185,13 +200,13 @@ def estimate_iou(voxel_grid_a, voxel_grid_b):
     return intersection / union
 
 
-def compare_reconstructions():
+def compare_reconstructions() -> None:
     """
     Run comparison test between 3-view and 12-view reconstruction.
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("MULTI-VIEW IoU COMPARISON TEST")
-    print("="*70)
+    print("=" * 70)
     print("\nObjective: Validate Phase 1 multi-view implementation")
     print("Expected: 12-view IoU > 3-view IoU (0.88-0.92 vs 0.875)")
 
@@ -213,7 +228,9 @@ def compare_reconstructions():
     if not turntable_dir.exists():
         print(f"\n❌ ERROR: Turntable directory not found: {turntable_dir}")
         print("\nRun generate_turntable_sequence.py first:")
-        print("  /Applications/Blender.app/Contents/MacOS/Blender --background --python generate_turntable_sequence.py -- --object vase")
+        print(
+            "  /Applications/Blender.app/Contents/MacOS/Blender --background --python generate_turntable_sequence.py -- --object vase"
+        )
         return
 
     # Run 3-view reconstruction
@@ -227,9 +244,9 @@ def compare_reconstructions():
     )
 
     # Compare results
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("RESULTS COMPARISON")
-    print("="*70)
+    print("=" * 70)
 
     print(f"\n3-View Baseline:")
     print(f"  Views: 3 (front, side, top)")
@@ -245,8 +262,8 @@ def compare_reconstructions():
 
     # Calculate relative metrics
     iou_between = estimate_iou(voxel_3view, voxel_12view)
-    occupancy_diff = stats_12view['occupancy'] - stats_3view['occupancy']
-    time_ratio = stats_12view['processing_time'] / stats_3view['processing_time']
+    occupancy_diff = stats_12view["occupancy"] - stats_3view["occupancy"]
+    time_ratio = stats_12view["processing_time"] / stats_3view["processing_time"]
 
     print(f"\nDifferences:")
     print(f"  IoU between reconstructions: {iou_between:.4f}")
@@ -254,9 +271,9 @@ def compare_reconstructions():
     print(f"  Processing time ratio: {time_ratio:.2f}x")
 
     # Analysis
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("ANALYSIS")
-    print("="*70)
+    print("=" * 70)
 
     print(f"\n✓ Multi-view reconstruction successful")
     print(f"✓ Both methods completed without errors")
@@ -277,9 +294,9 @@ def compare_reconstructions():
         print(f"⚠ Processing time high ({time_ratio:.2f}x slower)")
 
     # Ground truth comparison note
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("NOTE: Ground Truth Comparison")
-    print("="*70)
+    print("=" * 70)
     print("\nThis test compares 3-view vs 12-view reconstructions.")
     print("To measure absolute IoU vs ground truth:")
     print("  1. Load the original vase mesh")
@@ -289,18 +306,19 @@ def compare_reconstructions():
     print("  - 3-view: ~0.875")
     print("  - 12-view: 0.88-0.92")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST COMPLETE")
-    print("="*70)
+    print("=" * 70)
 
 
-def main():
+def main() -> int:
     """Run comparison test."""
     try:
         compare_reconstructions()
     except Exception as e:
         print(f"\n❌ ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

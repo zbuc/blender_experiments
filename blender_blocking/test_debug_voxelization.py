@@ -4,6 +4,8 @@ Debug voxelization issues in Phase 2 integration test.
 Tests voxelization in isolation to identify why all voxels are marked as inside.
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -12,15 +14,16 @@ sys.path.insert(0, str(Path(__file__).parent))
 import bpy
 import numpy as np
 from mathutils import Vector
+from integration.blender_ops.raycast_utils import ray_cast_world
 
 
-def clear_scene():
+def clear_scene() -> None:
     """Remove all objects from scene."""
-    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete()
 
 
-def create_simple_vase():
+def create_simple_vase() -> bpy.types.Object:
     """Create simple vase mesh."""
     bpy.ops.mesh.primitive_cylinder_add(radius=0.5, depth=2.0, location=(0, 0, 0))
     vase = bpy.context.active_object
@@ -28,7 +31,9 @@ def create_simple_vase():
     return vase
 
 
-def voxelize_mesh_debug(mesh_obj, resolution=32, use_fixed_bounds=False):
+def voxelize_mesh_debug(
+    mesh_obj: bpy.types.Object, resolution: int = 32, use_fixed_bounds: bool = False
+) -> None:
     """Voxelize with detailed debugging."""
     print(f"\n{'='*70}")
     print("VOXELIZATION DEBUG")
@@ -43,16 +48,12 @@ def voxelize_mesh_debug(mesh_obj, resolution=32, use_fixed_bounds=False):
     else:
         # Use mesh bounding box
         bbox = [mesh_obj.matrix_world @ Vector(corner) for corner in mesh_obj.bound_box]
-        bounds_min = Vector((
-            min(v.x for v in bbox),
-            min(v.y for v in bbox),
-            min(v.z for v in bbox)
-        ))
-        bounds_max = Vector((
-            max(v.x for v in bbox),
-            max(v.y for v in bbox),
-            max(v.z for v in bbox)
-        ))
+        bounds_min = Vector(
+            (min(v.x for v in bbox), min(v.y for v in bbox), min(v.z for v in bbox))
+        )
+        bounds_max = Vector(
+            (max(v.x for v in bbox), max(v.y for v in bbox), max(v.z for v in bbox))
+        )
         print("Using MESH bounds from bounding box")
 
     print(f"\nMesh: {mesh_obj.name}")
@@ -74,9 +75,9 @@ def voxelize_mesh_debug(mesh_obj, resolution=32, use_fixed_bounds=False):
     # Test a few specific voxels
     test_voxels = [
         (0, 0, 0),  # Corner
-        (resolution//2, resolution//2, resolution//2),  # Center
-        (resolution//2, resolution//2, 0),  # Bottom center
-        (0, 0, resolution-1),  # Top corner
+        (resolution // 2, resolution // 2, resolution // 2),  # Center
+        (resolution // 2, resolution // 2, 0),  # Bottom center
+        (0, 0, resolution - 1),  # Top corner
     ]
 
     print(f"\nTesting specific voxels:")
@@ -93,15 +94,15 @@ def voxelize_mesh_debug(mesh_obj, resolution=32, use_fixed_bounds=False):
             direction = Vector(ray_dir)
             origin = point - direction * 10
 
-            result, location, normal, index = mesh_obj.ray_cast(
-                origin,
-                direction,
-                distance=20.0
+            result, location, normal, index = ray_cast_world(
+                mesh_obj, origin, direction, 20.0
             )
 
             print(f"    Ray from {origin} dir {ray_dir}: hit={result}")
             if result:
-                print(f"      Hit at {location}, distance={(location-origin).length:.3f}")
+                print(
+                    f"      Hit at {location}, distance={(location-origin).length:.3f}"
+                )
                 hit_count += 1
 
         inside = hit_count >= 2
@@ -121,10 +122,8 @@ def voxelize_mesh_debug(mesh_obj, resolution=32, use_fixed_bounds=False):
                 hit_count = 0
                 for ray_dir in [(1, 0, 0), (0, 1, 0), (0, 0, 1)]:
                     direction = Vector(ray_dir)
-                    result, location, normal, index = mesh_obj.ray_cast(
-                        point - direction * 10,
-                        direction,
-                        distance=20.0
+                    result, location, normal, index = ray_cast_world(
+                        mesh_obj, point - direction * 10, direction, 20.0
                     )
                     if result:
                         hit_count += 1
@@ -143,22 +142,24 @@ def voxelize_mesh_debug(mesh_obj, resolution=32, use_fixed_bounds=False):
     if occupancy > 0.9:
         print(f"\n  ✗ ERROR: {occupancy*100:.0f}% occupancy - raycast likely broken")
     elif occupancy < 0.1:
-        print(f"\n  ✗ ERROR: {occupancy*100:.0f}% occupancy - mesh likely empty or raycast missing")
+        print(
+            f"\n  ✗ ERROR: {occupancy*100:.0f}% occupancy - mesh likely empty or raycast missing"
+        )
     else:
         print(f"\n  ✓ OK: {occupancy*100:.0f}% occupancy looks reasonable")
 
 
-def test_voxelization():
+def test_voxelization() -> None:
     """Test voxelization debug."""
-    print("="*70)
+    print("=" * 70)
     print("VOXELIZATION DEBUG TEST")
-    print("="*70)
+    print("=" * 70)
 
     clear_scene()
 
     # Test 1: Simple cylinder
     print("\nTEST 1: Simple Cylinder")
-    print("-"*70)
+    print("-" * 70)
     vase = create_simple_vase()
 
     print("\nVase mesh info:")
@@ -171,18 +172,18 @@ def test_voxelization():
 
     # Test 2: Same mesh with FIXED bounds
     print("\n\nTEST 2: Same Mesh with FIXED Bounds [-2,-2,-2] to [2,2,2]")
-    print("-"*70)
+    print("-" * 70)
     voxelize_mesh_debug(vase, resolution=32, use_fixed_bounds=True)
 
     # Test 3: After scene modifications
     print("\n\nTEST 3: After Adding Camera (simulating rendering setup)")
-    print("-"*70)
+    print("-" * 70)
     bpy.ops.object.camera_add(location=(5, 0, 0))
     voxelize_mesh_debug(vase, resolution=32, use_fixed_bounds=True)
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("DEBUG COMPLETE")
-    print("="*70)
+    print("=" * 70)
 
 
 if __name__ == "__main__":

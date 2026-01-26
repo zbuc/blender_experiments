@@ -8,9 +8,9 @@ This validates that our 3D reconstruction accurately represents the input refere
 
 ## Current Capabilities
 
-### ✅ Already Implemented
+### 🚧 Partially Implemented
 
-We have all the required components:
+Core pieces exist, but the pipeline must be updated for canonical silhouettes and bounds-based framing.
 
 1. **Orthogonal Rendering** (`integration/blender_ops/render_utils.py`)
    - `render_orthogonal_views()` - Renders from front/side/top cameras
@@ -18,13 +18,13 @@ We have all the required components:
    - Configurable camera positions
 
 2. **Image Comparison** (`integration/shape_matching/shape_matcher.py`)
-   - `compare_silhouettes()` - IoU (Intersection over Union) metric
-   - Handles different image sizes (auto-resize)
-   - Returns detailed comparison metrics
+   - `compare_silhouettes()` exists but needs canonical IoU updates
+   - Auto-resize should be replaced with canonicalization
+   - Returns comparison metrics (needs updated diagnostics)
 
 3. **Image Processing** (`integration/image_processing/image_processor.py`)
    - Edge detection and normalization
-   - Binary silhouette extraction
+   - Silhouette extraction needs canonical path + alpha handling
 
 4. **Blender Headless Support**
    - Blender can run without GUI: `blender --background --python script.py`
@@ -139,17 +139,16 @@ scene.render.image_settings.color_mode = 'RGBA'
 
 **Solution**:
 - Use orthographic cameras (no perspective distortion)
-- Standard positions: front=(0,-10,0), side=(10,0,0), top=(0,0,10)
-- Adjustable ortho_scale to match reference framing
+- Bounds-based framing per view (avoid fixed ortho_scale)
+- Adjustable margin to avoid clipping
 
 ### Challenge 3: Scale Normalization
 
 **Problem**: Generated mesh may be different size than reference images
 
 **Solution**:
-- Normalize both images to same dimensions before comparison
-- Use relative metrics (IoU) rather than absolute pixel counts
-- Already implemented in `compare_silhouettes()` (auto-resize)
+- Canonicalize silhouettes (crop, pad, resize, anchor) before comparison
+- Use IoU on canonicalized masks rather than raw resize
 
 ### Challenge 4: CI/CD Integration
 
@@ -161,7 +160,7 @@ scene.render.image_settings.color_mode = 'RGBA'
 blender --background --python test_e2e.py -- --test-images test_images/
 
 # Docker container with Blender pre-installed
-docker run -v $(pwd):/workspace blender:3.6 \
+docker run -v $(pwd):/workspace blender:4.2 \
     blender --background --python /workspace/test_e2e.py
 ```
 
@@ -172,7 +171,7 @@ docker run -v $(pwd):/workspace blender:3.6 \
 ```
 IoU = (Area of Overlap) / (Area of Union)
 Range: [0, 1], where 1 = perfect match
-Threshold: 0.7 (good match), 0.8 (excellent match)
+Thresholds should be re-baselined after canonicalization (start with 0.7).
 ```
 
 **Why IoU?**

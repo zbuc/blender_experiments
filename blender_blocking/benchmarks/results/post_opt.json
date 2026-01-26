@@ -1,0 +1,55 @@
+{
+  "results": [
+    {
+      "name": "visual_hull_reconstruct",
+      "iterations": 1,
+      "elapsed_s": 0.006881900015287101,
+      "per_iter_ms": 6.881900015287101,
+      "status": "ok",
+      "meta": {
+        "resolution": 32,
+        "num_views": 8,
+        "include_top": false,
+        "occupied_voxels": 3840
+      },
+      "skip_reason": null
+    },
+    {
+      "name": "canonicalize_mask",
+      "iterations": 200,
+      "elapsed_s": 0.022830999980214983,
+      "per_iter_ms": 0.11415499990107492,
+      "status": "ok",
+      "meta": {
+        "output_size": 256
+      },
+      "skip_reason": null
+    },
+    {
+      "name": "compare_silhouettes",
+      "iterations": 200,
+      "elapsed_s": 0.17096809996291995,
+      "per_iter_ms": 0.8548404998145998,
+      "status": "ok",
+      "meta": {
+        "output_size": 256
+      },
+      "skip_reason": null
+    },
+    {
+      "name": "extract_binary_silhouette",
+      "iterations": 200,
+      "elapsed_s": 0.014800400007516146,
+      "per_iter_ms": 0.07400200003758073,
+      "status": "ok",
+      "meta": {
+        "image_shape": [
+          96,
+          96,
+          4
+        ]
+      },
+      "skip_reason": null
+    }
+  ]
+}

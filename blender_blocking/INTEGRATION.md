@@ -41,7 +41,7 @@ scipy
 ```
 
 ### Blender
-- Blender 3.0+ with Python API (bpy)
+- Blender 4.2 LTS or 5.0 with Python API (bpy) (tested)
 
 Install Python dependencies:
 ```bash
@@ -51,7 +51,7 @@ pip install numpy opencv-python Pillow scipy
 For Blender's Python environment:
 ```bash
 # macOS example (adjust path for your Blender version)
-/Applications/Blender.app/Contents/Resources/3.6/python/bin/python3.10 -m pip install numpy opencv-python Pillow scipy
+/Applications/Blender.app/Contents/Resources/4.2/python/bin/python3.11 -m pip install numpy opencv-python Pillow scipy
 ```
 
 ## Usage
@@ -80,7 +80,7 @@ import sys
 from pathlib import Path
 
 # Add this repository to Python path
-repo_path = "/path/to/blender_experiments/crew/sculptor"
+repo_path = "/path/to/blendslop"
 sys.path.insert(0, repo_path)
 
 # Import and run workflow
@@ -100,7 +100,7 @@ For testing the 3D generation pipeline without images:
 
 ```python
 import sys
-sys.path.insert(0, "/path/to/blender_experiments/crew/sculptor")
+sys.path.insert(0, "/path/to/blendslop")
 
 from blender_blocking.main_integration import example_workflow_no_images
 
@@ -182,7 +182,7 @@ Run the test suite inside Blender to test the complete workflow:
 
 ```python
 import sys
-sys.path.insert(0, "/path/to/blender_experiments/crew/sculptor")
+sys.path.insert(0, "/path/to/blendslop")
 
 from blender_blocking.test_integration import run_all_tests
 run_all_tests()

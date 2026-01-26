@@ -1,10 +1,14 @@
 """Blender scene setup utilities."""
 
+from __future__ import annotations
+
 import math
+from typing import Optional, Tuple
 
 try:
     import bpy
     import mathutils
+
     BLENDER_AVAILABLE = True
 except ImportError:
     BLENDER_AVAILABLE = False
@@ -23,19 +27,19 @@ def setup_scene(clear_existing: bool = True) -> None:
 
     if clear_existing:
         # Delete all existing mesh objects
-        bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.object.select_all(action="SELECT")
         bpy.ops.object.delete(use_global=False)
 
     # Set render settings
-    bpy.context.scene.render.engine = 'CYCLES'
+    bpy.context.scene.render.engine = "CYCLES"
     bpy.context.scene.render.resolution_x = 512
     bpy.context.scene.render.resolution_y = 512
 
 
 def add_camera(
-    location: tuple = (7.5, -7.5, 5.5),
-    rotation: tuple = (63.0, 0.0, 45.0)
-) -> object:
+    location: Tuple[float, float, float] = (7.5, -7.5, 5.5),
+    rotation: Tuple[float, float, float] = (63.0, 0.0, 45.0),
+) -> Optional[object]:
     """
     Add a camera to the scene.
 
@@ -64,10 +68,10 @@ def add_camera(
 
 
 def add_lighting(
-    light_type: str = 'SUN',
-    location: tuple = (0, 0, 10),
-    energy: float = 1.0
-) -> object:
+    light_type: str = "SUN",
+    location: Tuple[float, float, float] = (0, 0, 10),
+    energy: float = 1.0,
+) -> Optional[object]:
     """
     Add lighting to the scene.
 

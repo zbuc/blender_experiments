@@ -17,14 +17,17 @@ Usage:
     /Applications/Blender.app/Contents/MacOS/Blender --background --python example_multiview_workflow.py
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
+from typing import Tuple
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
 # Add ~/blender_python_packages for Pillow (if in Blender)
-sys.path.insert(0, str(Path.home() / 'blender_python_packages'))
+sys.path.insert(0, str(Path.home() / "blender_python_packages"))
 
 try:
     import bpy
@@ -37,26 +40,26 @@ import numpy as np
 from integration.image_processing.image_loader import (
     load_multi_view_auto,
     load_multi_view_turntable,
-    validate_view_coverage
+    validate_view_coverage,
 )
 from integration.multi_view.visual_hull import MultiViewVisualHull, CameraView
 
 
-def example_12view_synthetic():
+def example_12view_synthetic() -> Tuple[MultiViewVisualHull, np.ndarray]:
     """
     Example 1: 12-view reconstruction with synthetic silhouettes.
 
     Demonstrates the complete pipeline with generated test data.
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 1: 12-View Reconstruction (Synthetic)")
-    print("="*70)
+    print("=" * 70)
 
     # Create Visual Hull instance
     hull = MultiViewVisualHull(
         resolution=64,  # Lower resolution for quick demo
         bounds_min=np.array([-1.5, -1.5, -1.5]),
-        bounds_max=np.array([1.5, 1.5, 1.5])
+        bounds_max=np.array([1.5, 1.5, 1.5]),
     )
 
     print("\n1. Generating synthetic cylinder silhouettes...")
@@ -70,9 +73,7 @@ def example_12view_synthetic():
         silhouette[:, 40:88] = True  # Vertical rectangle
 
         hull.add_view_from_silhouette(
-            silhouette,
-            angle=float(angle),
-            view_type='lateral'
+            silhouette, angle=float(angle), view_type="lateral"
         )
 
     # Add top view (circular silhouette)
@@ -80,13 +81,10 @@ def example_12view_synthetic():
     center = 64
     radius = 24
     y, x = np.ogrid[:128, :128]
-    mask = (x - center)**2 + (y - center)**2 <= radius**2
+    mask = (x - center) ** 2 + (y - center) ** 2 <= radius**2
     top_silhouette[mask] = True
 
-    hull.add_view_from_silhouette(
-        top_silhouette,
-        view_type='top'
-    )
+    hull.add_view_from_silhouette(top_silhouette, view_type="top")
 
     print(f"   ✓ Added {len(hull.views)} views (12 lateral + 1 top)")
 
@@ -111,15 +109,15 @@ def example_12view_synthetic():
     return hull, points
 
 
-def example_load_from_directory():
+def example_load_from_directory() -> None:
     """
     Example 2: Load multi-view images from directory.
 
     Demonstrates auto-detection of turntable sequence.
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 2: Load Multi-View from Directory (Demo)")
-    print("="*70)
+    print("=" * 70)
 
     # This is a demonstration of the API
     # In practice, you would have actual image files
@@ -150,22 +148,22 @@ def example_load_from_directory():
     print("\n✓ Example 2 complete (demonstration only)")
 
 
-def example_create_blender_mesh():
+def example_create_blender_mesh() -> None:
     """
     Example 3: Create Blender mesh from multi-view reconstruction.
 
     Demonstrates integration with Blender for mesh creation.
     """
     if bpy is None:
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("EXAMPLE 3: Blender Mesh Creation (SKIPPED - not in Blender)")
-        print("="*70)
+        print("=" * 70)
         print("\nRun this script in Blender to see mesh creation.")
         return
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 3: Create Blender Mesh from Multi-View")
-    print("="*70)
+    print("=" * 70)
 
     # Run synthetic reconstruction
     hull, points = example_12view_synthetic()
@@ -173,7 +171,7 @@ def example_create_blender_mesh():
     print("\n5. Creating Blender mesh...")
 
     # Clear existing meshes
-    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete()
 
     # Create mesh from points
@@ -194,15 +192,15 @@ def example_create_blender_mesh():
     print("\n✓ Example 3 complete - mesh created in Blender")
 
 
-def example_comparison_3view_vs_12view():
+def example_comparison_3view_vs_12view() -> None:
     """
     Example 4: Compare 3-view baseline vs 12-view.
 
     Demonstrates expected IoU improvement.
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 4: 3-View vs 12-View Comparison")
-    print("="*70)
+    print("=" * 70)
 
     print("\n3-View Baseline:")
     print("  Views: front (0°), side (90°), top")
@@ -224,11 +222,11 @@ def example_comparison_3view_vs_12view():
     print("\n✓ Example 4 complete")
 
 
-def main():
+def main() -> None:
     """Run all examples."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("MULTI-VIEW RECONSTRUCTION - EXAMPLE WORKFLOWS")
-    print("="*70)
+    print("=" * 70)
     print("\nBased on research: MULTI_VIEW_RECONSTRUCTION_RESEARCH.md")
     print("Target: 0.88-0.92 IoU with 12 views (vs 0.875 with 3 views)")
 
@@ -240,9 +238,9 @@ def main():
     if bpy:
         example_create_blender_mesh()
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("ALL EXAMPLES COMPLETE")
-    print("="*70)
+    print("=" * 70)
     print("\nNext steps:")
     print("  1. Capture turntable images (12 views at 30° spacing)")
     print("  2. Use load_multi_view_auto() to load images")

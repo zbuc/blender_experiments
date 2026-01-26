@@ -2,7 +2,7 @@
 
 Automated tool for creating rough 3D blockouts from orthogonal reference images for sculpting workflows.
 
-**Status:** ✅ Complete and tested
+**Status:** 🚧 In progress (legacy pipeline stable; roadmap-driven improvements underway)
 
 ## Quick Start
 
@@ -18,9 +18,9 @@ Already configured Blender? Jump straight to the [QUICKSTART](QUICKSTART.md).
 - **[BLENDER_SETUP.md](BLENDER_SETUP.md)** - Blender Python configuration guide ⭐ Start here
 - **[QUICKSTART.md](QUICKSTART.md)** - Get started in minutes
 - **[INTEGRATION.md](INTEGRATION.md)** - Detailed API and usage guide
-- **[TESTING.md](TESTING.md)** - Testing instructions and troubleshooting
+- **Testing** - See the Testing section below for local and CI commands
 - **[CI_CD.md](CI_CD.md)** - CI/CD testing with real Blender (GitHub Actions, Docker)
-- **[AGENTS.md](AGENTS.md)** - Quality gates for agents/crews (pre-commit, testing requirements)
+- **[../AGENTS.md](../AGENTS.md)** - Quality gates for agents/crews (pre-commit, testing requirements)
 - **[E2E_VALIDATION_SUMMARY.md](E2E_VALIDATION_SUMMARY.md)** - Validation framework details
 
 ## What It Does
@@ -35,7 +35,7 @@ Takes orthogonal reference images (front, side, top views) and automatically gen
 
 ```python
 import sys
-sys.path.insert(0, "/path/to/blender_experiments/crew/sculptor")
+sys.path.insert(0, "/path/to/blendslop")
 
 from blender_blocking.main_integration import example_workflow_with_images
 
@@ -64,9 +64,7 @@ blender_blocking/
 ├── BLENDER_SETUP.md            # ⭐ Blender Python setup guide
 ├── QUICKSTART.md               # Quick start guide
 ├── INTEGRATION.md              # Detailed API guide
-├── TESTING.md                  # Testing guide
 ├── CI_CD.md                    # CI/CD guide (GitHub Actions, Docker)
-├── AGENTS.md                   # Agent quality gates & testing requirements
 ├── main_integration.py         # Main workflow
 ├── create_test_images.py       # Test image generator
 ├── verify_setup.py             # Dependency verification
@@ -96,7 +94,7 @@ blender_blocking/
 ## Requirements
 
 - Python 3.8+
-- Blender 3.0+
+- Blender 4.2 LTS or 5.0 (tested)
 - Dependencies: numpy, opencv-python, Pillow, scipy
 
 See [QUICKSTART.md](QUICKSTART.md) for installation instructions.
@@ -105,9 +103,12 @@ See [QUICKSTART.md](QUICKSTART.md) for installation instructions.
 
 ### Running Tests Locally
 
-**All tests must run in Blender** to validate actual Blender API usage:
+Blender-only tests must run in Blender; pure-Python tests can run outside Blender:
 
 ```bash
+# Pure-Python tests + dependency check (outside Blender)
+python test_runner.py
+
 # Full test suite
 blender --background --python test_runner.py
 
@@ -120,20 +121,22 @@ blender --background --python test_runner.py -- --verbose
 
 ### Test Suite
 
-The test runner executes 6 test suites:
-1. **Version Compatibility** - Detects Blender version and validates API compatibility
-2. **Boolean Solver Enum** - Validates Blender API enums for current version
-3. **MeshJoiner Integration** - Tests mesh joining with actual Blender operations
-4. **Full Workflow** - End-to-end procedural generation
-5. **E2E Validation** - Complete pipeline with IoU comparison (reference → 3D → render → compare)
-6. **Dependency Check** - Verifies all packages installed correctly
+The test runner executes 7 test suites:
+1. **Pure Python** - Config, geometry, and image-processing tests (no Blender required)
+2. **Version Compatibility** - Detects Blender version and validates API compatibility
+3. **Boolean Solver Enum** - Validates Blender API enums for current version
+4. **MeshJoiner Integration** - Tests mesh joining with actual Blender operations
+5. **Full Workflow** - End-to-end procedural generation
+6. **E2E Validation** - Complete pipeline with IoU comparison (reference → 3D → render → compare)
+7. **Dependency Check** - Verifies all packages installed correctly
 
 ### Supported Blender Versions
 
-Works automatically across Blender versions:
-- **Blender 5.0+**: Uses EXACT boolean solver (fully supported)
-- **Blender 4.2 (LTS)**: Uses FAST boolean solver (fully supported)
-- **Blender 4.0-4.1**: Uses FAST boolean solver (supported)
+Tested and supported versions:
+- **Blender 5.0**: Uses EXACT boolean solver
+- **Blender 4.2 (LTS)**: Uses FAST boolean solver
+
+Older versions are unverified and may require compatibility updates.
 
 Version detection is automatic - no configuration required.
 
@@ -157,7 +160,7 @@ blender --background --python test_runner.py -- --quick
 - All tests pass in Blender 4.2 (LTS)
 - Exit code 0 = pass, 1 = fail, 2 = runner error
 
-See [TESTING.md](TESTING.md) for detailed testing instructions.
+See the Testing section in this README for detailed testing instructions.
 
 ## Development
 
@@ -174,13 +177,13 @@ This tool was built through Gas Town's multi-agent workflow:
 
 ### Module Status
 
-- ✅ Primitives library - Complete
-- ✅ Shape matching - Complete
-- ✅ Primitive placement - Complete
-- ✅ Integration framework - Complete
-- ✅ Main integration - Complete
-- ✅ Test suite - Complete
-- ✅ Documentation - Complete
+- 🚧 Primitives library - Stable; new profile/loft path in progress
+- 🚧 Shape matching - Stable; canonical IoU updates in progress
+- 🚧 Primitive placement - Stable; heuristics and join modes in progress
+- 🚧 Integration framework - Stable; manifest/config updates in progress
+- 🚧 Main integration - Stable; optional loft path in progress
+- 🚧 Test suite - Stable; expanded pure-Python + Blender tests in progress
+- 🚧 Documentation - Updating to match implementation spec
 
 ## License
 

@@ -11,6 +11,8 @@ This test was added to catch boolean solver enum changes (like Blender 5.0
 removing 'FAST' in favor of 'EXACT', 'FLOAT', 'MANIFOLD').
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -18,11 +20,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def test_boolean_solver_enum():
+def test_boolean_solver_enum() -> bool:
     """Test that boolean modifier uses valid solver enum."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST: Boolean Solver Enum Compatibility")
-    print("="*60)
+    print("=" * 60)
 
     try:
         import bpy
@@ -34,7 +36,7 @@ def test_boolean_solver_enum():
     print(f"✓ Running in Blender {bpy.app.version_string}")
 
     # Clean scene
-    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete()
 
     # Create two cubes to test boolean operation
@@ -50,10 +52,10 @@ def test_boolean_solver_enum():
     # Test boolean modifier with EXACT solver
     print("Testing boolean modifier with EXACT solver...")
     try:
-        modifier = cube1.modifiers.new(name="BoolTest", type='BOOLEAN')
-        modifier.operation = 'UNION'
+        modifier = cube1.modifiers.new(name="BoolTest", type="BOOLEAN")
+        modifier.operation = "UNION"
         modifier.object = cube2
-        modifier.solver = 'EXACT'  # Should work in Blender 5.0+
+        modifier.solver = "EXACT"  # Should work in Blender 5.0+
         print("✓ EXACT solver accepted")
     except TypeError as e:
         print(f"❌ FAILED: EXACT solver not valid: {e}")
@@ -76,17 +78,17 @@ def test_boolean_solver_enum():
         print("❌ FAILED: Result has no vertices")
         return False
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("✓ Boolean solver test PASSED")
-    print("="*60)
+    print("=" * 60)
     return True
 
 
-def test_mesh_joiner():
+def test_mesh_joiner() -> bool:
     """Test the MeshJoiner class boolean operations."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST: MeshJoiner Boolean Operations")
-    print("="*60)
+    print("=" * 60)
 
     try:
         import bpy
@@ -97,7 +99,7 @@ def test_mesh_joiner():
     from blender_blocking.placement.primitive_placement import MeshJoiner
 
     # Clean scene
-    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete()
 
     # Create test objects
@@ -124,23 +126,25 @@ def test_mesh_joiner():
     except Exception as e:
         print(f"❌ FAILED: MeshJoiner error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("✓ MeshJoiner test PASSED")
-    print("="*60)
+    print("=" * 60)
     return True
 
 
-def run_all_blender_tests():
+def run_all_blender_tests() -> int:
     """Run all Blender-specific tests."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("BLENDER INTEGRATION TEST SUITE")
-    print("="*70)
+    print("=" * 70)
 
     try:
         import bpy
+
         print(f"Blender version: {bpy.app.version_string}")
         print(f"Python version: {sys.version}")
     except ImportError:
@@ -154,15 +158,15 @@ def run_all_blender_tests():
     results = {}
 
     # Test 1: Boolean solver enum
-    results['boolean_solver'] = test_boolean_solver_enum()
+    results["boolean_solver"] = test_boolean_solver_enum()
 
     # Test 2: MeshJoiner integration
-    results['mesh_joiner'] = test_mesh_joiner()
+    results["mesh_joiner"] = test_mesh_joiner()
 
     # Summary
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST SUMMARY")
-    print("="*70)
+    print("=" * 70)
 
     all_passed = True
     for test_name, result in results.items():
@@ -173,7 +177,7 @@ def run_all_blender_tests():
             all_passed = False
         print(f"  {test_name}: {status}")
 
-    print("="*70)
+    print("=" * 70)
 
     if all_passed:
         print("\n✓ All tests PASSED")

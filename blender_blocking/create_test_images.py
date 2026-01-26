@@ -3,10 +3,13 @@ Simple script to create test reference images.
 This script has minimal dependencies and can run without numpy/opencv.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 try:
     from PIL import Image, ImageDraw
+
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
@@ -14,12 +17,14 @@ except ImportError:
     exit(1)
 
 
-def create_bottle_silhouette(width=512, height=512, view='front'):
+def create_bottle_silhouette(
+    width: int = 512, height: int = 512, view: str = "front"
+) -> object:
     """Create a simple bottle silhouette."""
-    img = Image.new('L', (width, height), color=255)
+    img = Image.new("L", (width, height), color=255)
     draw = ImageDraw.Draw(img)
 
-    if view in ['front', 'side']:
+    if view in ["front", "side"]:
         # Neck
         neck_width = 60
         neck_height = 100
@@ -34,34 +39,38 @@ def create_bottle_silhouette(width=512, height=512, view='front'):
 
         # Draw neck
         draw.rectangle(
-            [neck_x, neck_y, neck_x + neck_width, neck_y + neck_height],
-            fill=0
+            [neck_x, neck_y, neck_x + neck_width, neck_y + neck_height], fill=0
         )
 
         # Draw body
         draw.ellipse(
-            [body_x, body_y, body_x + body_width, body_y + body_height],
-            fill=0
+            [body_x, body_y, body_x + body_width, body_y + body_height], fill=0
         )
     else:  # top view
         center_x = width // 2
         center_y = height // 2
         radius = 75
         draw.ellipse(
-            [center_x - radius, center_y - radius,
-             center_x + radius, center_y + radius],
-            fill=0
+            [
+                center_x - radius,
+                center_y - radius,
+                center_x + radius,
+                center_y + radius,
+            ],
+            fill=0,
         )
 
     return img
 
 
-def create_vase_silhouette(width=512, height=512, view='front'):
+def create_vase_silhouette(
+    width: int = 512, height: int = 512, view: str = "front"
+) -> object:
     """Create a simple vase silhouette."""
-    img = Image.new('L', (width, height), color=255)
+    img = Image.new("L", (width, height), color=255)
     draw = ImageDraw.Draw(img)
 
-    if view in ['front', 'side']:
+    if view in ["front", "side"]:
         center_x = width // 2
         bottom_width = 120
         bottom_y = height - 50
@@ -87,25 +96,30 @@ def create_vase_silhouette(width=512, height=512, view='front'):
             h = int((bottom_y - top_y) / num_segments + 5)
 
             draw.ellipse(
-                [center_x - w//2, y - h//2, center_x + w//2, y + h//2],
-                fill=0
+                [center_x - w // 2, y - h // 2, center_x + w // 2, y + h // 2], fill=0
             )
     else:  # top view
         center_x = width // 2
         center_y = height // 2
         radius = 70
         draw.ellipse(
-            [center_x - radius, center_y - radius,
-             center_x + radius, center_y + radius],
-            fill=0
+            [
+                center_x - radius,
+                center_y - radius,
+                center_x + radius,
+                center_y + radius,
+            ],
+            fill=0,
         )
 
     return img
 
 
-def create_cube_silhouette(width=512, height=512, view='front'):
+def create_cube_silhouette(
+    width: int = 512, height: int = 512, view: str = "front"
+) -> object:
     """Create a simple cube silhouette."""
-    img = Image.new('L', (width, height), color=255)
+    img = Image.new("L", (width, height), color=255)
     draw = ImageDraw.Draw(img)
 
     # Simple square for all views
@@ -118,15 +132,15 @@ def create_cube_silhouette(width=512, height=512, view='front'):
     return img
 
 
-def main():
+def main() -> None:
     """Create test images for different shapes."""
     shapes = {
-        'bottle': create_bottle_silhouette,
-        'vase': create_vase_silhouette,
-        'cube': create_cube_silhouette
+        "bottle": create_bottle_silhouette,
+        "vase": create_vase_silhouette,
+        "cube": create_cube_silhouette,
     }
 
-    output_dir = Path('test_images')
+    output_dir = Path("test_images")
     output_dir.mkdir(exist_ok=True)
 
     print("Creating test reference images...")
@@ -135,11 +149,11 @@ def main():
 
     for shape_name, create_func in shapes.items():
         print(f"Creating {shape_name} images:")
-        for view in ['front', 'side', 'top']:
+        for view in ["front", "side", "top"]:
             img = create_func(view=view)
             filename = output_dir / f"{shape_name}_{view}.png"
             img.save(filename)
-            print(f"  ✓ {filename}")
+            print(f"  OK: {filename}")
         print()
 
     print("All test images created successfully!")
@@ -151,7 +165,9 @@ def main():
     print()
     print("    import sys")
     print(f"    sys.path.append('{Path.cwd()}')")
-    print("    from blender_blocking.main_integration import example_workflow_with_images")
+    print(
+        "    from blender_blocking.main_integration import example_workflow_with_images"
+    )
     print("    example_workflow_with_images(")
     print("        'test_images/vase_front.png',")
     print("        'test_images/vase_side.png',")

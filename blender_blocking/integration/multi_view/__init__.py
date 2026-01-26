@@ -15,7 +15,7 @@ Functions:
 from .visual_hull import MultiViewVisualHull, CameraView, load_multi_view_turntable
 
 __all__ = [
-    'MultiViewVisualHull',
-    'CameraView',
-    'load_multi_view_turntable',
+    "MultiViewVisualHull",
+    "CameraView",
+    "load_multi_view_turntable",
 ]

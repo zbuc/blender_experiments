@@ -7,12 +7,14 @@ Usage:
     /Applications/Blender.app/Contents/MacOS/Blender --background --python test_phase2_step1_profiles.py
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 
 # Add to path
 sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path.home() / 'blender_python_packages'))
+sys.path.insert(0, str(Path.home() / "blender_python_packages"))
 
 import bpy
 import numpy as np
@@ -23,9 +25,10 @@ from integration.multi_view.visual_hull import MultiViewVisualHull
 
 # Phase 2: Multi-profile extraction (import directly to avoid cv2 dependency)
 import importlib.util
+
 spec = importlib.util.spec_from_file_location(
     "mesh_profile_extractor",
-    Path(__file__).parent / "integration/shape_matching/mesh_profile_extractor.py"
+    Path(__file__).parent / "integration/shape_matching/mesh_profile_extractor.py",
 )
 mesh_profile_extractor = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mesh_profile_extractor)
@@ -34,26 +37,39 @@ extract_multi_angle_profiles = mesh_profile_extractor.extract_multi_angle_profil
 combine_profiles = mesh_profile_extractor.combine_profiles
 
 
-def clear_scene():
+def clear_scene() -> None:
     """Remove all objects from scene."""
-    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete()
 
 
-def create_visual_hull_from_images(turntable_dir, resolution=128):
+def _create_empty_voxel_mesh(name: str = "VisualHull") -> bpy.types.Object:
+    """Create an empty mesh object for empty voxel grids."""
+    mesh = bpy.data.meshes.new(f"{name}Mesh")
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    return obj
+
+
+def create_visual_hull_from_images(
+    turntable_dir: Path, resolution: int = 128
+) -> bpy.types.Object:
     """Create Visual Hull mesh from existing turntable images."""
     # Import directly to avoid cv2 dependency
     import importlib.util
+
     spec = importlib.util.spec_from_file_location(
         "image_loader",
-        Path(__file__).parent / "integration/image_processing/image_loader.py"
+        Path(__file__).parent / "integration/image_processing/image_loader.py",
     )
     image_loader = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(image_loader)
     load_multi_view_auto = image_loader.load_multi_view_auto
 
     print(f"\nLoading images from {turntable_dir}...")
-    views_dict = load_multi_view_auto(str(turntable_dir), num_views=12, include_top=True)
+    views_dict = load_multi_view_auto(
+        str(turntable_dir), num_views=12, include_top=True
+    )
     print(f"✓ Loaded {len(views_dict)} views")
 
     # Create Visual Hull
@@ -61,7 +77,7 @@ def create_visual_hull_from_images(turntable_dir, resolution=128):
     hull = MultiViewVisualHull(
         resolution=resolution,
         bounds_min=np.array([-2.0, -2.0, -2.0]),
-        bounds_max=np.array([2.0, 2.0, 2.0])
+        bounds_max=np.array([2.0, 2.0, 2.0]),
     )
 
     # Add views
@@ -79,7 +95,9 @@ def create_visual_hull_from_images(turntable_dir, resolution=128):
     # Reconstruct
     voxel_grid = hull.reconstruct(verbose=True)
     occupied = voxel_grid.sum()
-    print(f"✓ Visual Hull: {occupied:,} occupied voxels ({occupied/(resolution**3)*100:.2f}%)")
+    print(
+        f"✓ Visual Hull: {occupied:,} occupied voxels ({occupied/(resolution**3)*100:.2f}%)"
+    )
 
     # Create voxel mesh directly from voxel grid
     # This creates actual cube faces for each voxel, enabling raycasting
@@ -91,10 +109,16 @@ def create_visual_hull_from_images(turntable_dir, resolution=128):
     # Find occupied voxels
     occupied_indices = np.argwhere(voxel_grid)
     print(f"✓ Found {len(occupied_indices):,} occupied voxels")
+    if len(occupied_indices) == 0:
+        print("✗ No occupied voxels; returning empty mesh")
+        return _create_empty_voxel_mesh()
 
     # Sample only a subset for speed (every 2nd voxel in each dimension)
     sampled = occupied_indices[::4]  # Sample every 4th voxel
     print(f"✓ Sampling {len(sampled):,} voxels for mesh")
+    if len(sampled) == 0:
+        print("✗ No voxels after sampling; returning empty mesh")
+        return _create_empty_voxel_mesh()
 
     # Create a cube for each voxel
     voxels_to_add = []
@@ -109,7 +133,9 @@ def create_visual_hull_from_images(turntable_dir, resolution=128):
 
     # Create copies for voxels
     all_objects = []
-    for i, (pos, scale) in enumerate(voxels_to_add[:500]):  # Limit to 500 voxels for speed
+    for i, (pos, scale) in enumerate(
+        voxels_to_add[:500]
+    ):  # Limit to 500 voxels for speed
         if i == 0:
             obj = cube_template
         else:
@@ -121,6 +147,10 @@ def create_visual_hull_from_images(turntable_dir, resolution=128):
         obj.scale = scale
         all_objects.append(obj)
 
+    if not all_objects:
+        print("✗ No voxel cubes created; returning empty mesh")
+        return _create_empty_voxel_mesh()
+
     # Join all cubes
     print(f"Joining {len(all_objects)} cubes...")
     bpy.context.view_layer.objects.active = all_objects[0]
@@ -131,16 +161,18 @@ def create_visual_hull_from_images(turntable_dir, resolution=128):
     final_obj = bpy.context.active_object
     final_obj.name = "VisualHull"
 
-    print(f"✓ Created voxel mesh: {len(final_obj.data.vertices):,} vertices, {len(final_obj.data.polygons):,} faces")
+    print(
+        f"✓ Created voxel mesh: {len(final_obj.data.vertices):,} vertices, {len(final_obj.data.polygons):,} faces"
+    )
 
     return final_obj
 
 
-def test_profile_extraction():
+def test_profile_extraction() -> None:
     """Step 1: Demonstrate multi-profile extraction works."""
-    print("="*70)
+    print("=" * 70)
     print("PHASE 2 STEP 1: MULTI-PROFILE EXTRACTION")
-    print("="*70)
+    print("=" * 70)
     print("\nGoal: Show that extracting and combining profiles works")
     print("Input: Visual Hull mesh from Phase 1")
     print("Output: Combined profile data for SliceAnalyzer")
@@ -153,9 +185,9 @@ def test_profile_extraction():
         return
 
     # Step 1a: Create Visual Hull
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("STEP 1A: Create Visual Hull Mesh (Phase 1)")
-    print("="*70)
+    print("=" * 70)
 
     clear_scene()
     visual_hull = create_visual_hull_from_images(turntable_dir, resolution=128)
@@ -166,9 +198,9 @@ def test_profile_extraction():
         return
 
     # Step 1b: Extract multi-angle profiles
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("STEP 1B: Extract Multi-Angle Profiles (Phase 2)")
-    print("="*70)
+    print("=" * 70)
 
     # Define bounds for profile extraction
     bounds_min = Vector((-1.0, -1.0, -1.0))
@@ -184,7 +216,7 @@ def test_profile_extraction():
         num_angles=12,
         num_heights=20,
         bounds_min=bounds_min,
-        bounds_max=bounds_max
+        bounds_max=bounds_max,
     )
 
     print(f"\n✓ Extracted {len(profiles)} profiles")
@@ -202,13 +234,13 @@ def test_profile_extraction():
             print(f"    Empty profile")
 
     # Step 1c: Combine profiles
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("STEP 1C: Combine Profiles (Phase 2)")
-    print("="*70)
+    print("=" * 70)
 
     print("\nTesting combination methods...")
 
-    for method in ['mean', 'median', 'min', 'max']:
+    for method in ["mean", "median", "min", "max"]:
         combined = combine_profiles(profiles, method=method)
         radii = [r for h, r in combined]
 
@@ -221,11 +253,11 @@ def test_profile_extraction():
             print(f"    Empty profile")
 
     # Use median as default
-    combined_profile = combine_profiles(profiles, method='median')
+    combined_profile = combine_profiles(profiles, method="median")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("RESULTS")
-    print("="*70)
+    print("=" * 70)
 
     radii = [r for h, r in combined_profile]
 
@@ -252,9 +284,9 @@ def test_profile_extraction():
         print("\n✗ FAILURE: Combined profile is empty")
         print("Need to debug profile extraction")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("STEP 1 COMPLETE")
-    print("="*70)
+    print("=" * 70)
 
 
 if __name__ == "__main__":

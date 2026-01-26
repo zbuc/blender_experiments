@@ -25,31 +25,31 @@ Install packages directly into Blender's bundled Python interpreter.
 **macOS:**
 ```bash
 # Find Blender's Python (adjust version numbers as needed)
-BLENDER_PYTHON="/Applications/Blender.app/Contents/Resources/4.0/python/bin/python3.11"
+BLENDER_PYTHON="/Applications/Blender.app/Contents/Resources/4.2/python/bin/python3.11"
 
 # Install dependencies
-$BLENDER_PYTHON -m pip install numpy opencv-python Pillow scipy
+$BLENDER_PYTHON -m pip install -r /path/to/blendslop/blender_blocking/requirements.txt
 ```
 
 **Linux:**
 ```bash
 # Common Blender Python location
-BLENDER_PYTHON="/usr/share/blender/4.0/python/bin/python3.11"
+BLENDER_PYTHON="/usr/share/blender/4.2/python/bin/python3.11"
 
 # Or if installed via snap
-BLENDER_PYTHON="/snap/blender/current/4.0/python/bin/python3.11"
+BLENDER_PYTHON="/snap/blender/current/4.2/python/bin/python3.11"
 
 # Install dependencies
-$BLENDER_PYTHON -m pip install numpy opencv-python Pillow scipy
+$BLENDER_PYTHON -m pip install -r /path/to/blendslop/blender_blocking/requirements.txt
 ```
 
 **Windows:**
 ```powershell
 # Common Blender Python location
-$BLENDER_PYTHON = "C:\Program Files\Blender Foundation\Blender 4.0\4.0\python\bin\python.exe"
+$BLENDER_PYTHON = "C:\Program Files\Blender Foundation\Blender 4.2\4.2\python\bin\python.exe"
 
 # Install dependencies
-& $BLENDER_PYTHON -m pip install numpy opencv-python Pillow scipy
+& $BLENDER_PYTHON -m pip install -r "C:\path\to\blendslop\blender_blocking\requirements.txt"
 ```
 
 **Finding Blender's Python:**
@@ -74,7 +74,7 @@ print("✓ All dependencies available!")
 
 # Test blocking tool import
 import sys
-sys.path.insert(0, "/path/to/crew/sculptor")  # If not using startup script
+sys.path.insert(0, "/path/to/blendslop")  # If not using startup script
 from blender_blocking.main_integration import BlockingWorkflow
 
 print("✓ Blocking tool ready!")
@@ -86,7 +86,7 @@ Once dependencies are available, using the tool is simple:
 
 ```python
 import sys
-sys.path.insert(0, "/path/to/crew/sculptor")  # If needed
+sys.path.insert(0, "/path/to/blendslop")  # If needed
 
 from blender_blocking.main_integration import example_workflow_with_images
 
@@ -104,23 +104,18 @@ workflow = example_workflow_with_images(
 
 Your Blender Python doesn't have access to the dependencies.
 
-**Quick fix:**
-```python
-import sys
-# Add your venv site-packages (update path!)
-sys.path.insert(0, "/path/to/blender_blocking/venv/lib/python3.13/site-packages")
-```
+**Unsupported workaround:** Do not add your venv `site-packages` to Blender. Install dependencies directly into Blender's Python as described above.
 
 ### "Permission denied" when installing to Blender's Python
 
 On macOS/Linux, you may need admin permissions:
 ```bash
-sudo /Applications/Blender.app/Contents/Resources/4.0/python/bin/python3.11 -m pip install numpy opencv-python Pillow scipy
+sudo /Applications/Blender.app/Contents/Resources/4.2/python/bin/python3.11 -m pip install -r /path/to/blendslop/blender_blocking/requirements.txt
 ```
 
 Or install for user only:
 ```bash
-/Applications/Blender.app/Contents/Resources/4.0/python/bin/python3.11 -m pip install --user numpy opencv-python Pillow scipy
+/Applications/Blender.app/Contents/Resources/4.2/python/bin/python3.11 -m pip install --user -r /path/to/blendslop/blender_blocking/requirements.txt
 ```
 
 ### "ImportError: numpy.core.multiarray failed to import"
@@ -161,7 +156,7 @@ cat > setup_blender_blocking.sh << 'EOF'
 
 # Configuration
 BLENDER_APP="/Applications/Blender.app"
-BLENDER_PYTHON="$BLENDER_APP/Contents/Resources/4.0/python/bin/python3.11"
+BLENDER_PYTHON="$BLENDER_APP/Contents/Resources/4.2/python/bin/python3.11"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "🔧 Setting up Blender Blocking Tool"
@@ -175,7 +170,7 @@ if [ ! -f "$BLENDER_PYTHON" ]; then
 fi
 
 echo "📦 Installing dependencies to Blender's Python..."
-$BLENDER_PYTHON -m pip install numpy opencv-python Pillow scipy
+$BLENDER_PYTHON -m pip install -r /path/to/blendslop/blender_blocking/requirements.txt
 
 echo "✅ Setup complete!"
 echo ""
@@ -210,4 +205,4 @@ chmod +x setup_blender_blocking.sh
 
 - [QUICKSTART.md](QUICKSTART.md) - Quick start guide for using the tool
 - [INTEGRATION.md](INTEGRATION.md) - Full API documentation
-- [TESTING.md](TESTING.md) - Testing guide
+- [README.md](README.md#testing) - Testing commands and validation notes
