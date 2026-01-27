@@ -16,7 +16,7 @@ jobs:
     name: Test with Blender 5.0
     runs-on: ubuntu-latest
     container:
-      image: nytimes/blender:5.0-cpu-ubuntu22.04
+      image: blenderkit/headless-blender:blender-5.0
 
     steps:
       - name: Checkout code
@@ -61,7 +61,7 @@ jobs:
     name: Test with Blender 4.2 (LTS)
     runs-on: ubuntu-latest
     container:
-      image: nytimes/blender:4.2-cpu-ubuntu22.04
+      image: blenderkit/headless-blender:blender-4.2
 
     steps:
       - name: Checkout code
@@ -98,7 +98,7 @@ jobs:
     name: Quick smoke test (pre-merge)
     runs-on: ubuntu-latest
     container:
-      image: nytimes/blender:5.0-cpu-ubuntu22.04
+      image: blenderkit/headless-blender:blender-5.0
 
     steps:
       - name: Checkout code
