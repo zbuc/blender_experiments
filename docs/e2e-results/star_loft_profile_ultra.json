@@ -1,0 +1,56 @@
+{
+  "test_name": "star_loft_profile_ultra",
+  "timestamp": "2026-01-27T18:11:24.202116Z",
+  "summary": {
+    "avg_iou": 0.4723,
+    "min_iou": 0.2142,
+    "max_iou": 0.8386,
+    "num_views": 3,
+    "passed": false
+  },
+  "views": {
+    "front": {
+      "iou": 0.8386,
+      "intersection": 16351,
+      "union": 19498,
+      "pixel_difference": 0.048,
+      "images": {
+        "reference": "images/star_loft_profile_ultra/front_reference.png",
+        "rendered": "images/star_loft_profile_ultra/front_rendered.png"
+      }
+    },
+    "side": {
+      "iou": 0.3641,
+      "intersection": 2191,
+      "union": 6018,
+      "pixel_difference": 0.0584,
+      "images": {
+        "reference": "images/star_loft_profile_ultra/side_reference.png",
+        "rendered": "images/star_loft_profile_ultra/side_rendered.png"
+      }
+    },
+    "top": {
+      "iou": 0.2142,
+      "intersection": 2266,
+      "union": 10580,
+      "pixel_difference": 0.1269,
+      "images": {
+        "reference": "images/star_loft_profile_ultra/top_reference.png",
+        "rendered": "images/star_loft_profile_ultra/top_rendered.png"
+      }
+    }
+  },
+  "metadata": {
+    "subject": "star",
+    "num_slices": 120,
+    "config_label": "ultra",
+    "reconstruction_mode": "loft_profile",
+    "blender_version": "5.0.1",
+    "profile_samples": 240,
+    "radial_segments": 64,
+    "render_resolution": [
+      1536,
+      1536
+    ]
+  }
+}

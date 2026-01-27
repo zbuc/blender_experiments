@@ -1,0 +1,56 @@
+{
+  "test_name": "piss_loft_profile_ultra",
+  "timestamp": "2026-01-27T18:11:23.475447Z",
+  "summary": {
+    "avg_iou": 0.4737,
+    "min_iou": 0.2906,
+    "max_iou": 0.6687,
+    "num_views": 3,
+    "passed": false
+  },
+  "views": {
+    "front": {
+      "iou": 0.6687,
+      "intersection": 17233,
+      "union": 25772,
+      "pixel_difference": 0.1303,
+      "images": {
+        "reference": "images/piss_loft_profile_ultra/front_reference.png",
+        "rendered": "images/piss_loft_profile_ultra/front_rendered.png"
+      }
+    },
+    "side": {
+      "iou": 0.4618,
+      "intersection": 4233,
+      "union": 9166,
+      "pixel_difference": 0.0753,
+      "images": {
+        "reference": "images/piss_loft_profile_ultra/side_reference.png",
+        "rendered": "images/piss_loft_profile_ultra/side_rendered.png"
+      }
+    },
+    "top": {
+      "iou": 0.2906,
+      "intersection": 5889,
+      "union": 20262,
+      "pixel_difference": 0.2193,
+      "images": {
+        "reference": "images/piss_loft_profile_ultra/top_reference.png",
+        "rendered": "images/piss_loft_profile_ultra/top_rendered.png"
+      }
+    }
+  },
+  "metadata": {
+    "subject": "piss",
+    "num_slices": 120,
+    "config_label": "ultra",
+    "reconstruction_mode": "loft_profile",
+    "blender_version": "5.0.1",
+    "profile_samples": 240,
+    "radial_segments": 64,
+    "render_resolution": [
+      1536,
+      1536
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "test_name": "bottle2_loft_profile_ultra",
+  "timestamp": "2026-01-27T18:11:19.194441Z",
+  "summary": {
+    "avg_iou": 0.9878,
+    "min_iou": 0.9822,
+    "max_iou": 0.9944,
+    "num_views": 3,
+    "passed": true
+  },
+  "views": {
+    "front": {
+      "iou": 0.9867,
+      "intersection": 15869,
+      "union": 16083,
+      "pixel_difference": 0.0033,
+      "images": {
+        "reference": "images/bottle2_loft_profile_ultra/front_reference.png",
+        "rendered": "images/bottle2_loft_profile_ultra/front_rendered.png"
+      }
+    },
+    "side": {
+      "iou": 0.9822,
+      "intersection": 15045,
+      "union": 15317,
+      "pixel_difference": 0.0042,
+      "images": {
+        "reference": "images/bottle2_loft_profile_ultra/side_reference.png",
+        "rendered": "images/bottle2_loft_profile_ultra/side_rendered.png"
+      }
+    },
+    "top": {
+      "iou": 0.9944,
+      "intersection": 35542,
+      "union": 35741,
+      "pixel_difference": 0.003,
+      "images": {
+        "reference": "images/bottle2_loft_profile_ultra/top_reference.png",
+        "rendered": "images/bottle2_loft_profile_ultra/top_rendered.png"
+      }
+    }
+  },
+  "metadata": {
+    "subject": "bottle2",
+    "num_slices": 120,
+    "config_label": "ultra",
+    "reconstruction_mode": "loft_profile",
+    "blender_version": "5.0.1",
+    "profile_samples": 240,
+    "radial_segments": 64,
+    "render_resolution": [
+      1536,
+      1536
+    ]
+  }
+}

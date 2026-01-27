@@ -1,39 +1,39 @@
 {
   "test_name": "vase_loft_profile_ultra",
-  "timestamp": "2026-01-27T16:29:22.116960Z",
+  "timestamp": "2026-01-27T18:11:25.029144Z",
   "summary": {
-    "avg_iou": 0.9662,
-    "min_iou": 0.9584,
-    "max_iou": 0.9801,
+    "avg_iou": 0.9084,
+    "min_iou": 0.8774,
+    "max_iou": 0.9378,
     "num_views": 3,
     "passed": true
   },
   "views": {
     "front": {
-      "iou": 0.96,
-      "intersection": 8479,
-      "union": 8832,
-      "pixel_difference": 0.0054,
+      "iou": 0.91,
+      "intersection": 7936,
+      "union": 8721,
+      "pixel_difference": 0.012,
       "images": {
         "reference": "images/vase_loft_profile_ultra/front_reference.png",
         "rendered": "images/vase_loft_profile_ultra/front_rendered.png"
       }
     },
     "side": {
-      "iou": 0.9584,
-      "intersection": 8465,
-      "union": 8832,
-      "pixel_difference": 0.0056,
+      "iou": 0.9378,
+      "intersection": 8258,
+      "union": 8806,
+      "pixel_difference": 0.0084,
       "images": {
         "reference": "images/vase_loft_profile_ultra/side_reference.png",
         "rendered": "images/vase_loft_profile_ultra/side_rendered.png"
       }
     },
     "top": {
-      "iou": 0.9801,
-      "intersection": 35091,
-      "union": 35805,
-      "pixel_difference": 0.0109,
+      "iou": 0.8774,
+      "intersection": 26246,
+      "union": 29913,
+      "pixel_difference": 0.056,
       "images": {
         "reference": "images/vase_loft_profile_ultra/top_reference.png",
         "rendered": "images/vase_loft_profile_ultra/top_rendered.png"
@@ -41,6 +41,7 @@
     }
   },
   "metadata": {
+    "subject": "vase",
     "num_slices": 120,
     "config_label": "ultra",
     "reconstruction_mode": "loft_profile",

@@ -1,0 +1,56 @@
+{
+  "test_name": "dog_loft_profile_ultra",
+  "timestamp": "2026-01-27T18:11:21.809276Z",
+  "summary": {
+    "avg_iou": 0.4768,
+    "min_iou": 0.4384,
+    "max_iou": 0.5319,
+    "num_views": 3,
+    "passed": false
+  },
+  "views": {
+    "front": {
+      "iou": 0.4602,
+      "intersection": 8487,
+      "union": 18443,
+      "pixel_difference": 0.1519,
+      "images": {
+        "reference": "images/dog_loft_profile_ultra/front_reference.png",
+        "rendered": "images/dog_loft_profile_ultra/front_rendered.png"
+      }
+    },
+    "side": {
+      "iou": 0.4384,
+      "intersection": 13572,
+      "union": 30960,
+      "pixel_difference": 0.2653,
+      "images": {
+        "reference": "images/dog_loft_profile_ultra/side_reference.png",
+        "rendered": "images/dog_loft_profile_ultra/side_rendered.png"
+      }
+    },
+    "top": {
+      "iou": 0.5319,
+      "intersection": 7108,
+      "union": 13364,
+      "pixel_difference": 0.0955,
+      "images": {
+        "reference": "images/dog_loft_profile_ultra/top_reference.png",
+        "rendered": "images/dog_loft_profile_ultra/top_rendered.png"
+      }
+    }
+  },
+  "metadata": {
+    "subject": "dog",
+    "num_slices": 120,
+    "config_label": "ultra",
+    "reconstruction_mode": "loft_profile",
+    "blender_version": "5.0.1",
+    "profile_samples": 240,
+    "radial_segments": 64,
+    "render_resolution": [
+      1536,
+      1536
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "test_name": "car_loft_profile_ultra",
+  "timestamp": "2026-01-27T18:11:19.999500Z",
+  "summary": {
+    "avg_iou": 0.6523,
+    "min_iou": 0.5222,
+    "max_iou": 0.7695,
+    "num_views": 3,
+    "passed": false
+  },
+  "views": {
+    "front": {
+      "iou": 0.5222,
+      "intersection": 17962,
+      "union": 34394,
+      "pixel_difference": 0.2507,
+      "images": {
+        "reference": "images/car_loft_profile_ultra/front_reference.png",
+        "rendered": "images/car_loft_profile_ultra/front_rendered.png"
+      }
+    },
+    "side": {
+      "iou": 0.6652,
+      "intersection": 14841,
+      "union": 22311,
+      "pixel_difference": 0.114,
+      "images": {
+        "reference": "images/car_loft_profile_ultra/side_reference.png",
+        "rendered": "images/car_loft_profile_ultra/side_rendered.png"
+      }
+    },
+    "top": {
+      "iou": 0.7695,
+      "intersection": 16467,
+      "union": 21399,
+      "pixel_difference": 0.0753,
+      "images": {
+        "reference": "images/car_loft_profile_ultra/top_reference.png",
+        "rendered": "images/car_loft_profile_ultra/top_rendered.png"
+      }
+    }
+  },
+  "metadata": {
+    "subject": "car",
+    "num_slices": 120,
+    "config_label": "ultra",
+    "reconstruction_mode": "loft_profile",
+    "blender_version": "5.0.1",
+    "profile_samples": 240,
+    "radial_segments": 64,
+    "render_resolution": [
+      1536,
+      1536
+    ]
+  }
+}

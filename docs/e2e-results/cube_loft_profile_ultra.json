@@ -1,0 +1,56 @@
+{
+  "test_name": "cube_loft_profile_ultra",
+  "timestamp": "2026-01-27T18:11:21.006361Z",
+  "summary": {
+    "avg_iou": 0.9969,
+    "min_iou": 0.9953,
+    "max_iou": 1.0,
+    "num_views": 3,
+    "passed": true
+  },
+  "views": {
+    "front": {
+      "iou": 0.9953,
+      "intersection": 45156,
+      "union": 45369,
+      "pixel_difference": 0.0033,
+      "images": {
+        "reference": "images/cube_loft_profile_ultra/front_reference.png",
+        "rendered": "images/cube_loft_profile_ultra/front_rendered.png"
+      }
+    },
+    "side": {
+      "iou": 0.9953,
+      "intersection": 45156,
+      "union": 45369,
+      "pixel_difference": 0.0033,
+      "images": {
+        "reference": "images/cube_loft_profile_ultra/side_reference.png",
+        "rendered": "images/cube_loft_profile_ultra/side_rendered.png"
+      }
+    },
+    "top": {
+      "iou": 1.0,
+      "intersection": 45369,
+      "union": 45369,
+      "pixel_difference": 0.0,
+      "images": {
+        "reference": "images/cube_loft_profile_ultra/top_reference.png",
+        "rendered": "images/cube_loft_profile_ultra/top_rendered.png"
+      }
+    }
+  },
+  "metadata": {
+    "subject": "cube",
+    "num_slices": 120,
+    "config_label": "ultra",
+    "reconstruction_mode": "loft_profile",
+    "blender_version": "5.0.1",
+    "profile_samples": 240,
+    "radial_segments": 64,
+    "render_resolution": [
+      1536,
+      1536
+    ]
+  }
+}

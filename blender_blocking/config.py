@@ -107,6 +107,12 @@ class LoftMeshOptions:
     decimate_ratio: float = 0.1
     decimate_method: str = "COLLAPSE"
 
+    # Top-view contour lofting
+    use_top_contour: bool = True  # Use top-view for cross-section shape
+    contour_simplify_epsilon: float = 0.001  # Douglas-Peucker simplification
+    fallback_to_elliptical: bool = True  # Fallback if top-view unavailable
+    flat_object_threshold: float = 0.2  # Height/XY ratio threshold for flat detection
+
     def validate(self) -> None:
         """Validate configuration values."""
         if self.radial_segments < 3:
@@ -119,6 +125,10 @@ class LoftMeshOptions:
             raise ValueError("decimate_ratio must be between 0 and 1")
         if self.decimate_method not in ("COLLAPSE", "UNSUBDIV", "DISSOLVE"):
             raise ValueError("decimate_method must be COLLAPSE, UNSUBDIV, or DISSOLVE")
+        if self.contour_simplify_epsilon < 0:
+            raise ValueError("contour_simplify_epsilon must be >= 0")
+        if self.flat_object_threshold <= 0:
+            raise ValueError("flat_object_threshold must be > 0")
 
     def to_dict(self) -> Dict[str, object]:
         """Return a JSON-serializable dict."""
@@ -133,6 +143,10 @@ class LoftMeshOptions:
             "apply_decimation": self.apply_decimation,
             "decimate_ratio": self.decimate_ratio,
             "decimate_method": self.decimate_method,
+            "use_top_contour": self.use_top_contour,
+            "contour_simplify_epsilon": self.contour_simplify_epsilon,
+            "fallback_to_elliptical": self.fallback_to_elliptical,
+            "flat_object_threshold": self.flat_object_threshold,
         }
 
 

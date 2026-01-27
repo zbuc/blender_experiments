@@ -1,7 +1,14 @@
 {
-  "generated_at": "2026-01-27T16:37:41.994675Z",
+  "generated_at": "2026-01-27T18:11:25.029350Z",
   "test_cases": [
-    "vase_legacy_default",
+    "bottle2_loft_profile_ultra",
+    "bottle_loft_profile_ultra",
+    "car_loft_profile_ultra",
+    "cube_loft_profile_ultra",
+    "dog_loft_profile_ultra",
+    "dudeguy_loft_profile_ultra",
+    "piss_loft_profile_ultra",
+    "star_loft_profile_ultra",
     "vase_loft_profile_ultra"
   ]
 }

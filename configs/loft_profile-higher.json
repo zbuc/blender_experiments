@@ -44,7 +44,10 @@
     "weld_degenerate_rings": true,
     "apply_decimation": true,
     "decimate_ratio": 0.1,
-    "decimate_method": "COLLAPSE"
+    "decimate_method": "COLLAPSE",
+    "use_top_contour": true,
+    "contour_simplify_epsilon": 0.001,
+    "fallback_to_elliptical": true
   },
   "render_silhouette": {
     "resolution": [

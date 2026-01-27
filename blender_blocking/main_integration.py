@@ -82,6 +82,9 @@ from integration.image_processing.image_processor import process_image
 from integration.shape_matching.contour_analyzer import find_contours, analyze_shape
 from integration.blender_ops.profile_loft_mesh import create_loft_mesh_from_slices
 from integration.blender_ops.mesh_decimation import apply_decimation
+from integration.blender_ops.contour_loft_mesh import create_contour_loft_mesh
+from geometry.contour_utils import create_contour_template
+from geometry.contour_models import ContourSlice
 from geometry.profile_models import PixelScale
 from geometry.dual_profile import build_elliptical_profile_from_views
 from geometry.silhouette import extract_binary_silhouette
@@ -626,6 +629,8 @@ class BlockingWorkflow:
         warnings: List[str] = []
         front_mask = None
         side_mask = None
+        top_mask = None
+        top_contour_template = None
 
         if "front" in self.views:
             try:
@@ -638,6 +643,50 @@ class BlockingWorkflow:
                 side_mask = extract_binary_silhouette(self.views["side"])
             except Exception as exc:
                 warnings.append(f"Failed to extract side silhouette: {exc}")
+
+        # Extract top-view contour template if available and enabled
+        if "top" in self.views and self.config.mesh_from_profile.use_top_contour:
+            try:
+                top_mask = extract_binary_silhouette(self.views["top"])
+                from integration.shape_matching.contour_analyzer import find_contours
+                import cv2
+
+                # Find largest contour in top view
+                contours, _ = find_contours(
+                    (top_mask.astype(np.uint8) * 255),
+                    mode="external",
+                    return_hierarchy=True,
+                )
+
+                if contours:
+                    # Use largest contour
+                    largest_contour = max(contours, key=cv2.contourArea)
+
+                    # Simplify if configured
+                    epsilon = self.config.mesh_from_profile.contour_simplify_epsilon
+                    if epsilon > 0:
+                        perimeter = cv2.arcLength(largest_contour, True)
+                        largest_contour = cv2.approxPolyDP(
+                            largest_contour,
+                            epsilon * perimeter,
+                            True
+                        )
+
+                    # Create normalized template
+                    top_contour_template = create_contour_template(
+                        largest_contour,
+                        num_vertices=self.config.mesh_from_profile.radial_segments,
+                        source_view="top",
+                    )
+                    print(f"  Extracted top-view contour: {top_contour_template.num_vertices} vertices")
+                else:
+                    warnings.append("No contours found in top view")
+
+            except Exception as exc:
+                warnings.append(f"Failed to extract top contour: {exc}")
+                print(f"  Warning: Top contour extraction failed: {exc}")
+                if not self.config.mesh_from_profile.fallback_to_elliptical:
+                    raise
 
         if front_mask is None and side_mask is None:
             warnings.append(
@@ -680,6 +729,27 @@ class BlockingWorkflow:
         bounds_min = (-max_rx, -max_ry, profile.z0)
         bounds_max = (max_rx, max_ry, profile.z0 + profile.world_height)
 
+        # Choose mesh generation strategy based on top-view availability
+        use_contour_lofting = (
+            top_contour_template is not None
+            and self.config.mesh_from_profile.use_top_contour
+        )
+
+        # Detect flat objects for special handling
+        is_flat = False
+        scale_mode = "profile"
+        if use_contour_lofting:
+            from geometry.contour_utils import detect_flat_object
+            is_flat = detect_flat_object(max_rx, max_ry, profile.world_height)
+            if is_flat:
+                scale_mode = "contour_native"
+                print("  Detected flat object - using top-view native dimensions")
+                print("  Using top-view constrained lofting (contour-based, flat-object mode)")
+            else:
+                print("  Using top-view constrained lofting (contour-based, profile-scaled mode)")
+        else:
+            print("  Using elliptical lofting (circular cross-sections)")
+
         if self.context.dry_run:
             outputs = {
                 "primitives": {"count": 0, "names": []},
@@ -693,17 +763,50 @@ class BlockingWorkflow:
             self.manifest = manifest
             return None
 
-        final_mesh = create_loft_mesh_from_slices(
-            slices,
-            name="Blockout_Mesh",
-            radial_segments=self.config.mesh_from_profile.radial_segments,
-            cap_mode=self.config.mesh_from_profile.cap_mode,
-            min_radius_u=self.config.mesh_from_profile.min_radius_u,
-            merge_threshold_u=self.config.mesh_from_profile.merge_threshold_u,
-            recalc_normals=self.config.mesh_from_profile.recalc_normals,
-            shade_smooth=self.config.mesh_from_profile.shade_smooth,
-            weld_degenerate_rings=self.config.mesh_from_profile.weld_degenerate_rings,
-        )
+        if use_contour_lofting:
+            # For flat objects, use constant scaling (contour defines full XY extent)
+            # For volumetric objects, no additional scaling (profile handles it)
+            z_factors = [1.0 for _ in slices]
+
+            # Convert elliptical slices to contour slices
+            contour_slices = [
+                ContourSlice(
+                    z=s.z,
+                    scale_x=s.rx,
+                    scale_y=s.ry,
+                    cx=s.cx if s.cx is not None else 0.0,
+                    cy=s.cy if s.cy is not None else 0.0,
+                    scale_mode=scale_mode,
+                    z_scale_factor=z_factors[i],
+                )
+                for i, s in enumerate(slices)
+            ]
+
+            final_mesh = create_contour_loft_mesh(
+                contour_slices,
+                top_contour_template,
+                name="Blockout_Mesh",
+                cap_mode=self.config.mesh_from_profile.cap_mode,
+                min_radius_u=self.config.mesh_from_profile.min_radius_u,
+                merge_threshold_u=self.config.mesh_from_profile.merge_threshold_u,
+                recalc_normals=self.config.mesh_from_profile.recalc_normals,
+                shade_smooth=self.config.mesh_from_profile.shade_smooth,
+                weld_degenerate_rings=self.config.mesh_from_profile.weld_degenerate_rings,
+                unit_scale=self.config.reconstruction.unit_scale,
+            )
+        else:
+            # Fallback to elliptical lofting
+            final_mesh = create_loft_mesh_from_slices(
+                slices,
+                name="Blockout_Mesh",
+                radial_segments=self.config.mesh_from_profile.radial_segments,
+                cap_mode=self.config.mesh_from_profile.cap_mode,
+                min_radius_u=self.config.mesh_from_profile.min_radius_u,
+                merge_threshold_u=self.config.mesh_from_profile.merge_threshold_u,
+                recalc_normals=self.config.mesh_from_profile.recalc_normals,
+                shade_smooth=self.config.mesh_from_profile.shade_smooth,
+                weld_degenerate_rings=self.config.mesh_from_profile.weld_degenerate_rings,
+            )
 
         if final_mesh is not None:
             # Apply mesh decimation if enabled
