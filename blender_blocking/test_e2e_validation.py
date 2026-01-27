@@ -359,78 +359,112 @@ def test_with_sample_images(
             print(result.stderr)
             return False
 
-    # Use vase test images
-    reference_paths = {
-        "front": str(test_images_dir / "vase_front.png"),
-        "side": str(test_images_dir / "vase_side.png"),
-        "top": str(test_images_dir / "vase_top.png"),
-    }
+    # Discover all test subjects (files ending in _front.png, _side.png, _top.png)
+    test_subjects = set()
+    for img_path in test_images_dir.glob("*_front.png"):
+        subject = img_path.stem.replace("_front", "")
+        # Check if all three views exist
+        if (
+            (test_images_dir / f"{subject}_side.png").exists()
+            and (test_images_dir / f"{subject}_top.png").exists()
+        ):
+            test_subjects.add(subject)
 
-    # Run validation with many slices to capture profile details
-    validator = E2EValidator(
-        iou_threshold=0.7,
-        render_config=render_config,
-        workflow_config=workflow_config,
-        config_label=config_label,
-        progress=progress,
-    )
-    passed, results = validator.validate_reconstruction(
-        reference_paths, num_slices=num_slices
-    )
+    test_subjects = sorted(test_subjects)
 
-    # Print detailed results
-    validator.print_detailed_results()
+    if not test_subjects:
+        print("ERROR: No complete test image sets found")
+        return False
+
+    print(f"\nFound {len(test_subjects)} test subjects: {', '.join(test_subjects)}")
+    print("=" * 60)
 
     # Export results for GitHub Pages
     export_dir = base_dir.parent / "docs" / "e2e-results"
-    try:
-        exporter = E2EResultsExporter(export_dir)
-        recon_mode = (
-            validator.workflow_config.reconstruction.reconstruction_mode
-            if validator.workflow_config
-            else "legacy"
-        )
-        test_name = f"vase_{recon_mode}_{config_label}"
+    exporter = E2EResultsExporter(export_dir)
 
-        # Get metadata
-        cfg = validator.workflow_config
-        metadata = {
-            "num_slices": num_slices,
-            "config_label": config_label,
-            "reconstruction_mode": recon_mode,
-            "blender_version": bpy.app.version_string if BLENDER_AVAILABLE else "N/A",
-            "profile_samples": cfg.profile_sampling.num_samples if cfg else None,
-            "radial_segments": cfg.mesh_from_profile.radial_segments if cfg else None,
-            "render_resolution": list(cfg.render_silhouette.resolution) if cfg else None,
+    all_passed = True
+    test_case_names = []
+
+    for subject_idx, subject in enumerate(test_subjects, 1):
+        print(f"\n[Test {subject_idx}/{len(test_subjects)}] Testing subject: {subject}")
+        print("-" * 60)
+
+        reference_paths = {
+            "front": str(test_images_dir / f"{subject}_front.png"),
+            "side": str(test_images_dir / f"{subject}_side.png"),
+            "top": str(test_images_dir / f"{subject}_top.png"),
         }
 
-        # Export this test case
-        exporter.export_test_case(
-            test_name=test_name,
-            views=["front", "side", "top"],
-            reference_paths=reference_paths,
-            rendered_paths=validator.rendered_paths,
-            results=results,
-            metadata=metadata,
+        # Run validation
+        validator = E2EValidator(
+            iou_threshold=0.7,
+            render_config=render_config,
+            workflow_config=workflow_config,
+            config_label=config_label,
+            progress=progress,
+        )
+        passed, results = validator.validate_reconstruction(
+            reference_paths, num_slices=num_slices
         )
 
-        # Update index with all test cases
-        import json
+        all_passed = all_passed and passed
 
-        existing_cases = set()
-        index_file = export_dir / "index.json"
-        if index_file.exists():
-            with open(index_file) as f:
-                index_data = json.load(f)
-                existing_cases = set(index_data.get("test_cases", []))
+        # Print detailed results
+        validator.print_detailed_results()
 
-        existing_cases.add(test_name)
-        exporter.export_index(sorted(existing_cases))
+        # Export results for GitHub Pages
+        try:
+            recon_mode = (
+                validator.workflow_config.reconstruction.reconstruction_mode
+                if validator.workflow_config
+                else "legacy"
+            )
+            test_name = f"{subject}_{recon_mode}_{config_label}"
+            test_case_names.append(test_name)
 
+            # Get metadata
+            cfg = validator.workflow_config
+            metadata = {
+                "subject": subject,
+                "num_slices": num_slices,
+                "config_label": config_label,
+                "reconstruction_mode": recon_mode,
+                "blender_version": bpy.app.version_string if BLENDER_AVAILABLE else "N/A",
+                "profile_samples": cfg.profile_sampling.num_samples if cfg else None,
+                "radial_segments": cfg.mesh_from_profile.radial_segments if cfg else None,
+                "render_resolution": list(cfg.render_silhouette.resolution) if cfg else None,
+            }
+
+            # Export this test case
+            exporter.export_test_case(
+                test_name=test_name,
+                views=["front", "side", "top"],
+                reference_paths=reference_paths,
+                rendered_paths=validator.rendered_paths,
+                results=results,
+                metadata=metadata,
+            )
+
+        except Exception as e:
+            print(f"Warning: Failed to export results for {subject}: {e}")
+
+    # Update index with all test cases
+    try:
+        exporter.export_index(sorted(test_case_names))
+        print(f"\n✓ Exported {len(test_case_names)} test cases to GitHub Pages")
     except Exception as e:
-        print(f"Warning: Failed to export results for GitHub Pages: {e}")
+        print(f"Warning: Failed to export index for GitHub Pages: {e}")
 
-    return passed
+    # Print overall summary
+    print("\n" + "=" * 60)
+    print("OVERALL TEST SUMMARY")
+    print("=" * 60)
+    print(f"Total subjects tested: {len(test_subjects)}")
+    print(f"Result: {'✓ ALL PASSED' if all_passed else '✗ SOME FAILED'}")
+    print("=" * 60)
+
+    return all_passed
 
 
 def test_with_custom_images(
