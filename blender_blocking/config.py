@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple
 
-from blender_blocking.utils.blender_version import get_eevee_engine_name
+from utils.blender_version import get_eevee_engine_name
 
 
 _VALID_RECON_MODES = {"legacy", "loft_profile", "silhouette_intersection"}
