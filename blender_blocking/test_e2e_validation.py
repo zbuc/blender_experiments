@@ -79,7 +79,7 @@ class E2EValidator:
         self.iou_threshold = iou_threshold
         self.view_thresholds = view_thresholds or {}
         self.render_config = render_config or RenderConfig()
-        self.workflow_config = workflow_config
+        self.workflow_config = workflow_config or BlockingConfig()
         self.config_label = config_label
         self.progress = progress
         self.results = {}

@@ -15,11 +15,13 @@ sys.path.insert(0, str(Path.home() / "blender_python_packages"))
 try:
     import bpy
     import numpy as np
+    from mathutils import Vector
 
     BLENDER_AVAILABLE = True
 except ImportError:
     bpy = None
     np = None
+    Vector = None
     BLENDER_AVAILABLE = False
 
 from integration.blender_ops.camera_framing import (
@@ -63,24 +65,22 @@ class TestSilhouetteRendering(unittest.TestCase):
         target = bpy.context.active_object
         target.name = "TestRender_Target"
 
-        bpy.ops.mesh.primitive_cube_add(size=0.2, location=(0.4, 0, 0))
+        bpy.ops.mesh.primitive_cube_add(size=0.5, location=(0.75, 0, 0))
         extra = bpy.context.active_object
         extra.name = "TestRender_Extra"
 
-        mat = ensure_silhouette_material()
-        extra.data.materials.clear()
-        extra.data.materials.append(mat)
-
-        bounds_min, bounds_max = compute_bounds_world([target])
+        bounds_min, bounds_max = compute_bounds_world([target, extra])
         output_dir = Path(__file__).parent / "test_output" / "render_isolation"
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Test 1: Render only target (hide_non_targets=True)
         with silhouette_session(
             target_objects=[target],
             resolution=(128, 128),
             color_mode="RGBA",
             transparent_bg=False,
             hide_non_targets=True,
+            engine="BLENDER_EEVEE",
         ) as session:
             configure_ortho_camera_for_view(
                 session.camera,
@@ -93,12 +93,14 @@ class TestSilhouetteRendering(unittest.TestCase):
             hidden_path = output_dir / "hidden.png"
             render_silhouette_frame(session, hidden_path)
 
+        # Test 2: Render both objects (include both as targets)
         with silhouette_session(
-            target_objects=[target],
+            target_objects=[target, extra],
             resolution=(128, 128),
             color_mode="RGBA",
             transparent_bg=False,
-            hide_non_targets=False,
+            hide_non_targets=True,
+            engine="BLENDER_EEVEE",
         ) as session:
             configure_ortho_camera_for_view(
                 session.camera,
