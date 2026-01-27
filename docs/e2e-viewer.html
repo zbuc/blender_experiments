@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E2E Test Results - Blender Blocking Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .test-list {
+            margin: 2rem 0;
+        }
+
+        .test-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .test-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .test-timestamp {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-box {
+            background: #f7fafc;
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .stat-value.pass {
+            color: #48bb78;
+        }
+
+        .stat-value.fail {
+            color: #f56565;
+        }
+
+        .views-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .view-comparison {
+            background: #fafafa;
+            border-radius: 6px;
+            padding: 1rem;
+            border: 2px solid #e2e8f0;
+        }
+
+        .view-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .view-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .iou-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .iou-badge.high {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .iou-badge.medium {
+            background: #fef5e7;
+            color: #975a16;
+        }
+
+        .iou-badge.low {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .image-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .image-box {
+            position: relative;
+        }
+
+        .image-label {
+            font-size: 0.75rem;
+            color: #718096;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+        }
+
+        .image-box img {
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .image-box img:hover {
+            transform: scale(1.02);
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            font-size: 0.85rem;
+        }
+
+        .metric {
+            background: white;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+
+        .metric-label {
+            color: #718096;
+            font-size: 0.75rem;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .debug-toggle {
+            margin-top: 0.75rem;
+            padding: 0.5rem;
+            background: #edf2f7;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .debug-toggle:hover {
+            background: #e2e8f0;
+        }
+
+        .debug-images {
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        .debug-images.visible {
+            display: grid;
+        }
+
+        .debug-image {
+            text-align: center;
+        }
+
+        .debug-image img {
+            width: 100%;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .debug-label {
+            font-size: 0.7rem;
+            color: #718096;
+            margin-top: 0.25rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #718096;
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #742a2a;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 2rem 0;
+        }
+
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .lightbox.visible {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 8px;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🎨 E2E Test Results</h1>
+            <p class="subtitle">Blender Blocking Tool - End-to-End Validation</p>
+            <p class="subtitle" id="lastUpdated">Loading...</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="testList" class="test-list">
+            <div class="loading">Loading test results...</div>
+        </div>
+    </div>
+
+    <div id="lightbox" class="lightbox">
+        <div class="lightbox-close" onclick="closeLightbox()">×</div>
+        <img id="lightboxImg" src="" alt="">
+    </div>
+
+    <script>
+        const BASE_PATH = window.location.pathname.includes('e2e-results')
+            ? 'e2e-results/'
+            : '';
+
+        async function loadResults() {
+            try {
+                const indexResponse = await fetch(`${BASE_PATH}index.json`);
+                const index = await indexResponse.json();
+
+                document.getElementById('lastUpdated').textContent =
+                    `Last updated: ${new Date(index.generated_at).toLocaleString()}`;
+
+                const testList = document.getElementById('testList');
+                testList.innerHTML = '';
+
+                for (const testCase of index.test_cases) {
+                    const testData = await fetch(`${BASE_PATH}${testCase}.json`);
+                    const data = await testData.json();
+                    testList.appendChild(createTestCard(data));
+                }
+            } catch (error) {
+                document.getElementById('testList').innerHTML =
+                    `<div class="error">Failed to load test results: ${error.message}</div>`;
+            }
+        }
+
+        function createTestCard(data) {
+            const card = document.createElement('div');
+            card.className = 'test-card';
+
+            const passClass = data.summary.passed ? 'pass' : 'fail';
+            const passText = data.summary.passed ? '✓ PASS' : '✗ FAIL';
+
+            let viewsHTML = '';
+            for (const [viewName, viewData] of Object.entries(data.views)) {
+                const iouClass = viewData.iou >= 0.8 ? 'high' : viewData.iou >= 0.5 ? 'medium' : 'low';
+
+                let debugHTML = '';
+                if (viewData.images.debug) {
+                    debugHTML = `
+                        <button class="debug-toggle" onclick="toggleDebug(this)">
+                            Show Debug Images
+                        </button>
+                        <div class="debug-images">
+                            ${Object.entries(viewData.images.debug).map(([name, path]) => `
+                                <div class="debug-image">
+                                    <img src="${BASE_PATH}${path}" alt="${name}" onclick="openLightbox(this.src)">
+                                    <div class="debug-label">${name.replace('_', ' ')}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                viewsHTML += `
+                    <div class="view-comparison">
+                        <div class="view-header">
+                            <div class="view-name">${viewName}</div>
+                            <div class="iou-badge ${iouClass}">IoU: ${viewData.iou.toFixed(3)}</div>
+                        </div>
+                        <div class="image-comparison">
+                            <div class="image-box">
+                                <div class="image-label">Reference</div>
+                                <img src="${BASE_PATH}${viewData.images.reference}" alt="${viewName} reference" onclick="openLightbox(this.src)">
+                            </div>
+                            <div class="image-box">
+                                <div class="image-label">Rendered</div>
+                                <img src="${BASE_PATH}${viewData.images.rendered}" alt="${viewName} rendered" onclick="openLightbox(this.src)">
+                            </div>
+                        </div>
+                        <div class="metrics">
+                            <div class="metric">
+                                <div class="metric-label">Intersection</div>
+                                <div class="metric-value">${viewData.intersection.toLocaleString()}</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Union</div>
+                                <div class="metric-value">${viewData.union.toLocaleString()}</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Pixel Diff</div>
+                                <div class="metric-value">${viewData.pixel_difference.toFixed(3)}</div>
+                            </div>
+                        </div>
+                        ${debugHTML}
+                    </div>
+                `;
+            }
+
+            card.innerHTML = `
+                <div class="test-header">
+                    <div>
+                        <div class="test-name">${data.test_name}</div>
+                        <div class="test-timestamp">${new Date(data.timestamp).toLocaleString()}</div>
+                    </div>
+                </div>
+                <div class="summary-stats">
+                    <div class="stat-box">
+                        <div class="stat-label">Status</div>
+                        <div class="stat-value ${passClass}">${passText}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Average IoU</div>
+                        <div class="stat-value">${data.summary.avg_iou.toFixed(3)}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Min IoU</div>
+                        <div class="stat-value">${data.summary.min_iou.toFixed(3)}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Max IoU</div>
+                        <div class="stat-value">${data.summary.max_iou.toFixed(3)}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Views Tested</div>
+                        <div class="stat-value">${data.summary.num_views}</div>
+                    </div>
+                </div>
+                <div class="views-grid">
+                    ${viewsHTML}
+                </div>
+            `;
+
+            return card;
+        }
+
+        function toggleDebug(button) {
+            const debugDiv = button.nextElementSibling;
+            if (debugDiv.classList.contains('visible')) {
+                debugDiv.classList.remove('visible');
+                button.textContent = 'Show Debug Images';
+            } else {
+                debugDiv.classList.add('visible');
+                button.textContent = 'Hide Debug Images';
+            }
+        }
+
+        function openLightbox(src) {
+            document.getElementById('lightboxImg').src = src;
+            document.getElementById('lightbox').classList.add('visible');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('visible');
+        }
+
+        document.getElementById('lightbox').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeLightbox();
+            }
+        });
+
+        // Load results on page load
+        loadResults();
+    </script>
+</body>
+</html>

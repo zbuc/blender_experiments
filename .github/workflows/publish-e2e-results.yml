@@ -1,0 +1,95 @@
+name: Publish E2E Results to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'blender_blocking/**'
+      - '.github/workflows/blender-tests.yml'
+      - '.github/workflows/publish-e2e-results.yml'
+  workflow_dispatch:
+
+# Sets permissions for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  run-e2e-tests:
+    name: Run E2E Tests and Generate Results
+    runs-on: ubuntu-latest
+    container:
+      image: blenderkit/headless-blender:blender-5.0
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: |
+          BLENDER_PYTHON=$(/home/headless/blender/blender --background --python-expr "import sys; print(sys.executable)" 2>&1 | grep -oP '/[^ ]+python[0-9.]*' | head -1)
+          echo "Blender Python: $BLENDER_PYTHON"
+          $BLENDER_PYTHON -m pip install numpy opencv-python Pillow scipy
+
+      - name: Run E2E tests and export results
+        run: |
+          cd blender_blocking
+          /home/headless/blender/blender --background --python test_e2e_validation.py
+
+      - name: Upload E2E results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: docs/e2e-results/
+          retention-days: 90
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: run-e2e-tests
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download E2E results
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-results
+          path: docs/e2e-results/
+
+      - name: Create index redirect
+        run: |
+          cat > docs/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta http-equiv="refresh" content="0; url=e2e-viewer.html">
+            <title>Redirecting...</title>
+          </head>
+          <body>
+            <p>Redirecting to <a href="e2e-viewer.html">E2E Test Results</a>...</p>
+          </body>
+          </html>
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

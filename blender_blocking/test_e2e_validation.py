@@ -45,6 +45,7 @@ from blender_blocking.integration.blender_ops.render_utils import (
 )
 from blender_blocking.integration.image_processing.image_loader import load_image
 from blender_blocking.utils.blender_version import get_eevee_engine_name
+from blender_blocking.utils.results_exporter import E2EResultsExporter
 from blender_blocking.validation.silhouette_iou import (
     canonicalize_mask,
     compute_mask_iou,
@@ -84,6 +85,7 @@ class E2EValidator:
         self.config_label = config_label
         self.progress = progress
         self.results = {}
+        self.rendered_paths = {}
 
     def setup_render_settings(self) -> None:
         """Configure Blender for clean silhouette rendering."""
@@ -212,6 +214,9 @@ class E2EValidator:
 
         for view, path in rendered_paths.items():
             print(f"✓ Rendered {view}: {path}")
+
+        # Store rendered paths for later export
+        self.rendered_paths = rendered_paths
 
         # Step 4: Compare with references
         print("\n[4/4] Comparing rendered views to reference images...")
@@ -375,6 +380,45 @@ def test_with_sample_images(
 
     # Print detailed results
     validator.print_detailed_results()
+
+    # Export results for GitHub Pages
+    export_dir = base_dir.parent / "docs" / "e2e-results"
+    try:
+        exporter = E2EResultsExporter(export_dir)
+        test_name = f"vase_legacy_{config_label}"
+
+        # Get metadata
+        metadata = {
+            "num_slices": num_slices,
+            "config_label": config_label,
+            "blender_version": bpy.app.version_string if BLENDER_AVAILABLE else "N/A",
+        }
+
+        # Export this test case
+        exporter.export_test_case(
+            test_name=test_name,
+            views=["front", "side", "top"],
+            reference_paths=reference_paths,
+            rendered_paths=validator.rendered_paths,
+            results=results,
+            metadata=metadata,
+        )
+
+        # Update index with all test cases
+        import json
+
+        existing_cases = set()
+        index_file = export_dir / "index.json"
+        if index_file.exists():
+            with open(index_file) as f:
+                index_data = json.load(f)
+                existing_cases = set(index_data.get("test_cases", []))
+
+        existing_cases.add(test_name)
+        exporter.export_index(sorted(existing_cases))
+
+    except Exception as e:
+        print(f"Warning: Failed to export results for GitHub Pages: {e}")
 
     return passed
 
