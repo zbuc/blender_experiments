@@ -346,6 +346,27 @@
                 const testList = document.getElementById('testList');
                 testList.innerHTML = '';
 
+                // Check for error state
+                if (index.error) {
+                    testList.innerHTML = `
+                        <div class="error">
+                            <strong>⚠ No Test Results Available</strong><br>
+                            ${index.error}
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Check if there are any test cases
+                if (!index.test_cases || index.test_cases.length === 0) {
+                    testList.innerHTML = `
+                        <div class="loading">
+                            No test cases available yet. Results will appear here after E2E tests run successfully.
+                        </div>
+                    `;
+                    return;
+                }
+
                 for (const testCase of index.test_cases) {
                     const testData = await fetch(`${BASE_PATH}${testCase}.json`);
                     const data = await testData.json();
