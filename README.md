@@ -1,5 +1,8 @@
 # Repository Guidelines
 
+[![E2E Test Results](https://img.shields.io/badge/E2E%20Test%20Results-View%20Results-blue?style=flat-square&logo=github)](https://zbuc.github.io/blender_experiments/)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live-success?style=flat-square&logo=github)](https://zbuc.github.io/blender_experiments/)
+
 This repo is a Blender-based tooling sandbox for silhouette-driven 3D blockouts,
 image-based validation, and performance experiments. Most workflows run inside
 Blender's bundled Python, with pure-Python benchmarks for hotspots.
