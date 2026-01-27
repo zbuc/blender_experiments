@@ -331,9 +331,8 @@
     </div>
 
     <script>
-        const BASE_PATH = window.location.pathname.includes('e2e-results')
-            ? 'e2e-results/'
-            : '';
+        // E2E results are always in the e2e-results/ subdirectory
+        const BASE_PATH = 'e2e-results/';
 
         async function loadResults() {
             try {
