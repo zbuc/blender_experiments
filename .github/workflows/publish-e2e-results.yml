@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'blender_blocking/**'
+      - 'docs/**'
       - '.github/workflows/blender-tests.yml'
       - '.github/workflows/publish-e2e-results.yml'
   workflow_dispatch:
