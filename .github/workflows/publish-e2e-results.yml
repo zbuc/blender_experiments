@@ -43,7 +43,7 @@ jobs:
         continue-on-error: true
         run: |
           cd blender_blocking
-          /home/headless/blender/blender --background --python test_e2e_validation.py -- --config-path ../configs/loft_profile-extreme-ultra.json
+          /home/headless/blender/blender --background --python test_e2e_validation.py -- --config-path ../configs/loft_profile-ultra.json
           echo "test_exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Check if results were generated
