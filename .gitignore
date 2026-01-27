@@ -1,0 +1,27 @@
+# Gas Town beads tracking (managed via beads-sync branch)
+.beads/
+
+# Gas Town runtime state
+.runtime/
+.claude/
+state.json
+
+# Test/scratch scripts
+stacked_cubes.py
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Blender temp files
+*.blend1
+*.blend2
+
+# Generated test artifacts
+test_images/
+blender_blocking/test_images/
+blender_blocking/test_output/
+
+# OS
+.DS_Store

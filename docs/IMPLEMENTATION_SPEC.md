@@ -1,0 +1,407 @@
+# Implementation Master Spec (Single Source of Truth)
+
+This document replaces all prior roadmaps/specs and is the only authoritative implementation guide for the Blender Automated Blocking Tool. Foundations must be completed first. The dual-profile + loft + canonical IoU path is optional and must not break the legacy pipeline.
+
+## 1) Scope, Non-Goals, and Defaults
+
+### Scope (In)
+- Deterministic, testable reconstruction from orthogonal silhouettes.
+- Legacy slice-primitive-boolean path (maintained).
+- Optional dual-profile loft path (opt-in flag).
+- Canonical silhouette extraction, framing, and IoU validation.
+- Metadata tagging and run manifest for outputs.
+
+### Non-Goals (Out)
+- Full multi-view visual hull or turntable fusion.
+- ML-based segmentation or learned reconstruction.
+- Blender UI add-ons or operator UX beyond scripts.
+- Non-axis-aligned inputs (tilted silhouettes) in v1.
+
+### Default Behavior (Must Match Current)
+- `unit_scale = 0.01` (pixel to Blender units).
+- Legacy reconstruction path remains the default.
+- Boolean union remains default join mode unless explicitly changed.
+- Render resolution defaults to 512x512; canonical output size defaults to 256 (both configurable).
+
+## 2) Naming Map (Resolve Conflicts)
+This spec defines canonical names. Any legacy names must be treated as aliases.
+- `unit_scale` (canonical) == `pixel_size` (legacy) when scale policy is pixel-based.
+- `world_height` (canonical) == `height_u` (legacy).
+- `BBox2D` uses `(x0, y0, x1, y1)` exclusive bounds (Python slicing). Legacy `(x, y, w, h)` must be converted.
+- `cap_mode` uses `"fan" | "none"` (canonical). `"ngon"` is allowed as a legacy optional value for compatibility but is not the default.
+
+## 3) Module Layout (Canonical)
+All new pure-Python logic goes into `geometry/` and `validation/` and must not import `bpy`.
+
+```
+blender_blocking/
+  geometry/
+    __init__.py
+    profile_models.py
+    silhouette.py
+    dual_profile.py
+    slicing.py
+  validation/
+    __init__.py
+    silhouette_iou.py
+  integration/
+    blender_ops/
+      camera_framing.py
+      profile_loft_mesh.py
+      render_utils.py  (modified)
+  utils/
+    generation_context.py
+    manifest.py
+  config.py
+```
+
+Compatibility re-export (no new definitions):
+- `blender_blocking/integration/shape_matching/contracts.py` should re-export types from `geometry/profile_models.py` if older docs or modules expect them.
+
+## 4) Data Contracts (Canonical)
+Define all data contracts in `blender_blocking/geometry/profile_models.py`.
+
+### 4.1 BBox2D
+- `x0, y0` inclusive
+- `x1, y1` exclusive
+- Properties: `w = x1 - x0`, `h = y1 - y0`
+- Invariants: `0 <= x0 < x1 <= W`, `0 <= y0 < y1 <= H`
+
+### 4.2 PixelScale
+```python
+@dataclass(frozen=True)
+class PixelScale:
+    unit_per_px: float
+
+    @staticmethod
+    def from_target_height(target_height_units: float, silhouette_height_px: int) -> "PixelScale":
+        return PixelScale(unit_per_px=target_height_units / float(silhouette_height_px))
+```
+- Invariant: `unit_per_px > 0`
+
+### 4.3 VerticalWidthProfilePx
+Arrays length N; all arrays are float32/float64; `valid` is bool.
+- `heights_t`: monotonic in [0, 1], bottom to top.
+- `left_x`, `right_x`, `width_px`, `center_x` (NaN where invalid).
+- `bbox`: BBox2D used for sampling.
+- `source_view`: `"front"` or `"side"`.
+
+### 4.4 EllipticalProfileU
+- `heights_t`: length N, [0,1].
+- `rx`, `ry`: >= 0 in Blender units.
+- `world_height`: > 0 in Blender units.
+- `z0`: base z (default 0.0).
+- Optional `cx`, `cy` arrays (default disabled).
+
+### 4.5 EllipticalSlice
+Per-slice loft data:
+- `z`, `rx`, `ry`, optional `cx`, `cy`.
+
+## 5) Configuration (Canonical)
+All configuration fields and valid values are defined in the embedded schema in **Section 19**. Treat the schema as the single source of truth for config structure and defaults.
+
+Implementation rules:
+- `BlockingConfig` composes these groups: `ReconstructionConfig`, `SilhouetteExtractConfig`, `ProfileSamplingConfig`, `LoftMeshOptions`, `RenderConfig`, `CanonicalizeConfig`.
+- Defaults must preserve current behavior unless a phase explicitly changes them (see Section 1 defaults).
+- Render and canonicalization sizes must be easy to override via config and passed through to `render_orthogonal_views` and `canonicalize_mask`.
+
+## 6) Silhouette Extraction (Canonical Algorithm)
+Implemented in `blender_blocking/geometry/silhouette.py`.
+
+### 6.1 Input Validation
+- Accept `image.ndim` of 2 (gray) or 3 (RGB/RGBA).
+- Raise `ValueError` for any other shape.
+
+### 6.2 Alpha-First Logic
+- If RGBA and alpha varies, use alpha as silhouette driver.
+- `mask = alpha > alpha_threshold`.
+
+### 6.3 Luma Path with Auto Polarity
+- Convert to grayscale (uint8) if not already.
+- Compute `bg_mean` from border pixels; `center_mean` from central ROI.
+- If `center_mean < bg_mean`: object is darker -> invert threshold.
+- Use Otsu threshold if `gray_threshold` is None.
+
+### 6.4 Morphology and Cleanup
+- Apply close then open with odd kernel sizes (>=3) if configured.
+- Keep largest component if `largest_component_only=True`.
+- Fill holes by drawing external contour filled.
+
+### 6.5 Outputs
+- Return `bool` mask.
+- Provide `bbox_from_mask(mask)` that returns `BBox2D` or raises if empty.
+
+### Example (Synthetic)
+- Input: 100x100 grayscale with black rectangle 20x60 centered.
+- Output: mask with bbox `x0=40,x1=60,y0=20,y1=80` and nonzero area.
+
+## 7) Vertical Profile Extraction (Legacy Wrapper)
+Maintain legacy signature in `integration/shape_matching/profile_extractor.py` while delegating to canonical functions.
+
+### 7.1 Wrapper Rules
+- `extract_silhouette_from_image`:
+  - Calls `geometry.silhouette.extract_binary_silhouette` and returns uint8 0/255 for legacy callers.
+- `extract_vertical_profile(image, num_samples, *, bbox=None, already_silhouette=False, smoothing_window=3)`:
+  - Converts to silhouette, crops to bbox, samples widths, interpolates, smooths, normalizes.
+  - Returns `List[(height_norm, width_norm)]`.
+
+## 8) Dual-Profile Elliptical Reconstruction (Pure Python)
+Implemented in `blender_blocking/geometry/dual_profile.py`.
+
+### 8.1 Sampling Width Profiles
+`extract_vertical_width_profile_px(mask, bbox=None, num_samples, sample_policy, fill_strategy, smoothing_window)`:
+- Sample N rows from bottom to top.
+- For each row, find leftmost and rightmost True pixel.
+- width_px = right - left + 1
+- center_x = (left + right) / 2
+- Missing rows -> NaN then interpolated.
+- Smooth widths with median filter (window size).
+
+### 8.2 Build EllipticalProfileU
+`build_elliptical_profile_from_views(front_mask, side_mask, scale, num_samples, z0, height_strategy, fallback_policy, min_radius_u)`:
+- Compute `rx` from front, `ry` from side.
+- `height_strategy`: `front` (default), `side`, `max`, `mean`.
+- If only one view present:
+  - `fallback_policy="circular"` => missing axis equals available axis.
+  - `fallback_policy="error"` => raise.
+- Clamp radii to `min_radius_u`.
+- If offsets enabled, compute `cx/cy` from `center_x` minus bbox center.
+
+## 9) Slice Sampling
+Implemented in `blender_blocking/geometry/slicing.py`.
+
+`sample_elliptical_slices(profile, num_slices, sampling)`:
+- `cell_centers`: `t = (i+0.5)/num_slices`.
+- `endpoints`: `t = i/(num_slices-1)`.
+- `z = z0 + t * world_height`.
+- Interpolate `rx/ry` linearly at each `t`.
+
+## 10) Mesh-From-Profile Loft (Blender bmesh)
+Implemented in `integration/blender_ops/profile_loft_mesh.py`.
+
+### 10.1 Algorithm
+- For each slice:
+  - If `rx` or `ry` near 0 and `weld_degenerate_rings=True`, use a single point vertex.
+  - Else create ring of `radial_segments` vertices.
+- Bridge adjacent rings:
+  - Ring->Ring: quads (triangulate if desired).
+  - Ring->Point: triangle fan.
+  - Point->Ring: reverse triangle fan.
+- Caps:
+  - `cap_mode="fan"`: create center vertex and triangles.
+  - `cap_mode="ngon"` (legacy optional): create a single face from the ring; triangulation may vary by Blender version.
+  - `cap_mode="none"`: do nothing (mesh is open).
+- Post:
+  - Optional remove doubles (merge threshold).
+  - Recalc normals.
+  - Shade smooth.
+
+### 10.2 Blender Adapter Rules
+- Must not use `bpy.ops.mesh.primitive_*`.
+- Must not use boolean modifiers.
+- Prefer bmesh or `mesh.from_pydata`.
+
+## 11) Legacy Slice + Primitive Path (Keep Working)
+- `SliceAnalyzer` and `PrimitivePlacer` remain unchanged except for scale/heuristic improvements.
+- Join uses MeshJoiner (now supports multiple modes).
+
+## 12) Mesh Join Modes
+Implemented in `placement/primitive_placement.py`:
+- `boolean`: sequential boolean union.
+- `simple`: join objects without booleans.
+- `voxel`: join then voxel remesh.
+- `auto`: boolean for small N, voxel for large N.
+- Fallback order if remesh fails: voxel -> boolean -> simple.
+
+## 13) Render Framing (Orthographic)
+Implemented in `integration/blender_ops/camera_framing.py`.
+
+### 13.1 Bounds
+Compute world bounds by transforming each object’s `bound_box` with `matrix_world`.
+
+### 13.2 Ortho Scale
+For each view:
+- compute view-plane extents.
+- `ortho_scale = max(width_extent * (1+2*margin), height_extent * aspect * (1+2*margin))`.
+
+### 13.3 Camera Placement
+- front: look along -Y
+- side: look along -X
+- top: look along -Z
+- distance = `max_dim * distance_factor` (default 2.0).
+
+## 14) Canonical Silhouette IoU
+Implemented in `validation/silhouette_iou.py`.
+
+### 14.1 mask_from_image_array
+- RGBA: use alpha channel.
+- RGB/gray: luma and threshold.
+- Return bool mask.
+
+### 14.2 canonicalize_mask
+- Tight crop -> add padding -> resize nearest -> paste into canvas.
+- `bottom_center` alignment for front/side, `center` for top.
+- Optional small morphological close for rendered silhouettes.
+
+### 14.3 compute_mask_iou
+- Intersection/union on canonical masks.
+- If union == 0, IoU = 0 and note why.
+- Return IoUResult with diagnostics.
+
+## 15) Generation Context + Manifest
+Implemented in `utils/generation_context.py` and `utils/manifest.py`.
+
+### 15.1 Tags
+Add custom properties:
+- `blocktool_schema`, `blocktool_run_id`, `blocktool_seed`, `blocktool_role`, `blocktool_index` (if primitive), plus optional `blocktool_params`.
+
+### 15.2 Manifest
+Store a JSON-like dict in `scene["blocktool_manifest"]` with:
+- `manifest_version`, `run_id`, `created_utc`, `context`, `stages`, `outputs`, `warnings`, `errors`.
+
+## 16) Testing Strategy
+
+### 16.1 Pure Python Tests
+- Use synthetic masks; no Blender.
+- Validate: silhouette extraction, bbox, width profiles, slice sampling, canonical IoU invariance.
+
+### 16.2 Blender Integration Tests
+- Minimal geometry; clean scene before/after.
+- Validate loft mesh bounds, manifoldness, join modes, camera framing.
+
+### 16.3 E2E Tests
+- Render, canonicalize, compare IoU.
+- Save debug artifacts on failure: raw, canonical, diff.
+
+### 16.4 Test Runner
+- Pure-Python tests should run even without Blender.
+- Blender-only tests behind a flag or in Blender environments.
+
+## 17) Integration Touchpoints (Where to Modify)
+- `main_integration.py`: add `config` + `context`, add `create_3d_blockout_loft`, branch by `reconstruction_mode`.
+- `image_processor.py`: add `_to_gray_uint8`, support RGBA.
+- `profile_extractor.py`: wrap canonical silhouette, update vertical profile extraction.
+- `render_utils.py`: use camera framing and `RenderConfig`.
+- `shape_matcher.py`: use canonical IoU pipeline.
+- `primitive_placement.py`: add join modes and heuristics.
+- `test_e2e_validation.py`: use canonical IoU and framed renders.
+
+## 18) Acceptance Criteria
+- Legacy pipeline behaves identically when `reconstruction_mode="legacy"`.
+- Optional loft pipeline generates a watertight mesh without booleans.
+- IoU validation is robust to resolution/framing differences.
+- Metadata and manifest present for every run.
+- Tests are deterministic and partitioned by environment.
+
+## 19) Canonical Schemas (Embedded)
+These replace standalone JSON schema files.
+
+### 19.1 EllipticalProfile Schema
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blendtec.local/schema/elliptical_profile_v1.json",
+  "title": "EllipticalProfile (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "heights": {
+      "type": "array",
+      "items": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+      "minItems": 2
+    },
+    "rx": { "type": "array", "items": { "type": "number", "minimum": 0.0 }, "minItems": 2 },
+    "ry": { "type": "array", "items": { "type": "number", "minimum": 0.0 }, "minItems": 2 },
+    "cx": { "type": ["array", "null"], "items": { "type": "number" }, "minItems": 2 },
+    "cy": { "type": ["array", "null"], "items": { "type": "number" }, "minItems": 2 },
+    "world_height": { "type": "number", "exclusiveMinimum": 0.0 },
+    "z0": { "type": "number" },
+    "meta": { "type": ["object", "null"] }
+  },
+  "required": ["heights", "rx", "ry", "world_height", "z0"]
+}
+```
+
+### 19.2 Reconstruction Config Schema
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blendtec.local/schema/reconstruction_config_v1.json",
+  "title": "ReconstructionConfig (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "reconstruction_mode": { "type": "string", "enum": ["legacy", "loft_profile"] },
+    "unit_scale": { "type": "number", "minimum": 0.0 },
+    "num_slices": { "type": "integer", "minimum": 1 },
+    "mesh_join_mode": { "type": "string", "enum": ["auto", "boolean", "voxel", "simple"] },
+    "silhouette_extract_ref": { "$ref": "#/definitions/silhouette_extract" },
+    "silhouette_extract_render": { "$ref": "#/definitions/silhouette_extract" },
+    "profile_sampling": { "$ref": "#/definitions/profile_sampling" },
+    "mesh_from_profile": { "$ref": "#/definitions/mesh_from_profile" },
+    "canonicalize": { "$ref": "#/definitions/canonicalize" },
+    "render_silhouette": { "$ref": "#/definitions/render_silhouette" }
+  },
+  "required": ["reconstruction_mode", "unit_scale", "num_slices"],
+  "definitions": {
+    "silhouette_extract": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prefer_alpha": { "type": "boolean" },
+        "alpha_threshold": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "gray_threshold": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
+        "invert_policy": { "type": "string", "enum": ["auto", "invert", "no_invert"] },
+        "morph_close_px": { "type": "integer", "minimum": 0 },
+        "morph_open_px": { "type": "integer", "minimum": 0 },
+        "fill_holes": { "type": "boolean" },
+        "largest_component_only": { "type": "boolean" }
+      }
+    },
+    "profile_sampling": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "num_samples": { "type": "integer", "minimum": 2 },
+        "sample_policy": { "type": "string", "enum": ["endpoints", "cell_centers"] },
+        "fill_strategy": { "type": "string", "enum": ["interp_linear", "interp_nearest", "constant"] },
+        "smoothing_window": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "mesh_from_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "radial_segments": { "type": "integer", "minimum": 12 },
+        "cap_mode": { "type": "string", "enum": ["fan", "none", "ngon"] },
+        "min_radius_u": { "type": "number", "minimum": 0.0 },
+        "merge_threshold_u": { "type": "number", "minimum": 0.0 },
+        "recalc_normals": { "type": "boolean" },
+        "shade_smooth": { "type": "boolean" },
+        "weld_degenerate_rings": { "type": "boolean" }
+      }
+    },
+    "canonicalize": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "output_size": { "type": "integer", "minimum": 32 },
+        "padding_frac": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "anchor": { "type": "string", "enum": ["center", "bottom_center"] },
+        "interp": { "type": "string", "enum": ["nearest"] }
+      }
+    },
+    "render_silhouette": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "resolution": { "type": "array", "items": { "type": "integer", "minimum": 32 }, "minItems": 2, "maxItems": 2 },
+        "engine": { "type": "string", "enum": ["BLENDER_EEVEE", "WORKBENCH"] },
+        "transparent_bg": { "type": "boolean" },
+        "samples": { "type": "integer", "minimum": 1 },
+        "margin_frac": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+      }
+    }
+  }
+}
+```
