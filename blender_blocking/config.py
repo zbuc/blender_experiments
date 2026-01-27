@@ -98,6 +98,9 @@ class LoftMeshOptions:
     recalc_normals: bool = True
     shade_smooth: bool = True
     weld_degenerate_rings: bool = True
+    apply_decimation: bool = True
+    decimate_ratio: float = 0.1
+    decimate_method: str = "COLLAPSE"
 
     def validate(self) -> None:
         """Validate configuration values."""
@@ -107,6 +110,10 @@ class LoftMeshOptions:
             raise ValueError(f"cap_mode must be one of {_VALID_CAP_MODES}")
         if self.min_radius_u < 0 or self.merge_threshold_u < 0:
             raise ValueError("min_radius_u and merge_threshold_u must be >= 0")
+        if self.decimate_ratio < 0 or self.decimate_ratio > 1:
+            raise ValueError("decimate_ratio must be between 0 and 1")
+        if self.decimate_method not in ("COLLAPSE", "UNSUBDIV", "DISSOLVE"):
+            raise ValueError("decimate_method must be COLLAPSE, UNSUBDIV, or DISSOLVE")
 
     def to_dict(self) -> Dict[str, object]:
         """Return a JSON-serializable dict."""
@@ -118,6 +125,9 @@ class LoftMeshOptions:
             "recalc_normals": self.recalc_normals,
             "shade_smooth": self.shade_smooth,
             "weld_degenerate_rings": self.weld_degenerate_rings,
+            "apply_decimation": self.apply_decimation,
+            "decimate_ratio": self.decimate_ratio,
+            "decimate_method": self.decimate_method,
         }
 
 

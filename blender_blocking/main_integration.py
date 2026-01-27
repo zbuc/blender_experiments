@@ -81,6 +81,7 @@ from integration.image_processing.image_loader import load_orthogonal_views
 from integration.image_processing.image_processor import process_image
 from integration.shape_matching.contour_analyzer import find_contours, analyze_shape
 from integration.blender_ops.profile_loft_mesh import create_loft_mesh_from_slices
+from integration.blender_ops.mesh_decimation import apply_decimation
 from geometry.profile_models import PixelScale
 from geometry.dual_profile import build_elliptical_profile_from_views
 from geometry.silhouette import extract_binary_silhouette
@@ -705,6 +706,19 @@ class BlockingWorkflow:
         )
 
         if final_mesh is not None:
+            # Apply mesh decimation if enabled
+            if self.config.mesh_from_profile.apply_decimation:
+                try:
+                    final_mesh = apply_decimation(
+                        final_mesh,
+                        ratio=self.config.mesh_from_profile.decimate_ratio,
+                        method=self.config.mesh_from_profile.decimate_method,
+                        verbose=True,
+                    )
+                except Exception as e:
+                    print(f"  Warning: Decimation failed: {e}")
+                    # Continue with non-decimated mesh
+
             apply_object_tags(final_mesh, role="final", context=self.context)
             add_camera()
             add_lighting()

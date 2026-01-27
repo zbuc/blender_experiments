@@ -41,7 +41,10 @@
     "merge_threshold_u": 0.0,
     "recalc_normals": true,
     "shade_smooth": true,
-    "weld_degenerate_rings": true
+    "weld_degenerate_rings": true,
+    "apply_decimation": true,
+    "decimate_ratio": 0.1,
+    "decimate_method": "COLLAPSE"
   },
   "render_silhouette": {
     "resolution": [

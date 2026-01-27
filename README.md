@@ -123,9 +123,31 @@ Key reconstruction options in configs:
 - `reconstruction.reconstruction_mode`: `legacy`, `loft_profile`, `silhouette_intersection`
 - `silhouette_intersection`: `extrude_distance`, `contour_mode`, `boolean_solver`,
   `silhouette_extract_override`, `largest_component_only`
+- `mesh_from_profile` (loft_profile only): `radial_segments`, `cap_mode`, `apply_decimation`,
+  `decimate_ratio`, `decimate_method`
 - `render_silhouette`: `resolution`, `samples`, `engine`, `margin_frac`,
   `color_mode`, `force_material`, `background_color`, `silhouette_color`,
   `camera_distance_factor`, `party_mode`
+
+## Mesh decimation (loft_profile)
+
+The `loft_profile` mode includes automatic mesh decimation to reduce polygon count while maintaining quality. Testing shows:
+- **81% polygon reduction** with `decimate_ratio=0.1` (default)
+- **No loss in IoU** (actually +0.003 improvement)
+- Enabled by default in all loft_profile configs
+
+Configure in the `mesh_from_profile` section:
+```json
+{
+  "mesh_from_profile": {
+    "apply_decimation": true,
+    "decimate_ratio": 0.1,
+    "decimate_method": "COLLAPSE"
+  }
+}
+```
+
+See `blender_blocking/integration/blender_ops/README_DECIMATION.md` for details.
 
 ## Silhouette-intersection debug helper
 Run the dedicated debug script to inspect meshes and booleans:

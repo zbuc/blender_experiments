@@ -682,6 +682,12 @@ def _apply_overrides(cfg: BlockingConfig, overrides: Dict[str, Any]) -> None:
         cfg.mesh_from_profile.weld_degenerate_rings = bool(
             mesh["weld_degenerate_rings"]
         )
+    if "apply_decimation" in mesh:
+        cfg.mesh_from_profile.apply_decimation = bool(mesh["apply_decimation"])
+    if "decimate_ratio" in mesh:
+        cfg.mesh_from_profile.decimate_ratio = float(mesh["decimate_ratio"])
+    if "decimate_method" in mesh:
+        cfg.mesh_from_profile.decimate_method = mesh["decimate_method"]
 
     join = overrides.get("mesh_join", {})
     if "mode" in join:
