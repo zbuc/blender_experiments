@@ -123,7 +123,23 @@ def extract_weighted_profiles(
         [side_90, side_270], method="mean"
     )
 
-    # Extract radius ranges for reporting
+    # EMPIRICAL 2X SCALING CORRECTION (Option 3, per researcher hq-wtmf)
+    # Root cause: extract_profile_at_angle() produces radii 2x too small
+    # Empirical fix: Multiply all extracted radii by 2.0 before feeding to SliceAnalyzer
+    print(f"\n✓ Applying empirical 2x scaling correction...")
+
+    # Extract raw radii for reporting
+    front_radii_raw = [r for _, r in front_profile]
+    side_radii_raw = [r for _, r in side_profile]
+
+    print(f"  Raw front profile: radius {min(front_radii_raw):.3f} to {max(front_radii_raw):.3f}")
+    print(f"  Raw side profile: radius {min(side_radii_raw):.3f} to {max(side_radii_raw):.3f}")
+
+    # Apply 2x correction
+    front_profile = [(h, r * 2.0) for h, r in front_profile]
+    side_profile = [(h, r * 2.0) for h, r in side_profile]
+
+    # Extract corrected radii for reporting
     front_radii = [r for _, r in front_profile]
     side_radii = [r for _, r in side_profile]
 
