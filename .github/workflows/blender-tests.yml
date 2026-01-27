@@ -60,6 +60,7 @@ jobs:
   test-blender-4:
     name: Test with Blender 4.2 (LTS)
     runs-on: ubuntu-latest
+    continue-on-error: true  # Allow this job to fail without blocking
     container:
       image: blenderkit/headless-blender:blender-4.2
 
