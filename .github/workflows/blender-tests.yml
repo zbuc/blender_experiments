@@ -24,13 +24,13 @@ jobs:
 
       - name: Verify Blender version
         run: |
-          blender --version
-          blender --background --python-expr "import sys; print(f'Python: {sys.version}')"
+          /home/headless/blender/blender --version
+          /home/headless/blender/blender --background --python-expr "import sys; print(f'Python: {sys.version}')"
 
       - name: Install Python dependencies in Blender
         run: |
           # Find Blender's Python executable
-          BLENDER_PYTHON=$(blender --background --python-expr "import sys; print(sys.executable)" 2>&1 | grep -oP '/[^ ]+python[0-9.]*' | head -1)
+          BLENDER_PYTHON=$(/home/headless/blender/blender --background --python-expr "import sys; print(sys.executable)" 2>&1 | grep -oP '/[^ ]+python[0-9.]*' | head -1)
           echo "Blender Python: $BLENDER_PYTHON"
 
           # Verify pip is available
@@ -45,7 +45,7 @@ jobs:
       - name: Run test suite
         run: |
           cd blender_blocking
-          blender --background --python test_runner.py
+          /home/headless/blender/blender --background --python test_runner.py
 
       - name: Upload test logs on failure
         if: failure()
@@ -69,12 +69,12 @@ jobs:
 
       - name: Verify Blender version
         run: |
-          blender --version
-          blender --background --python-expr "import sys; print(f'Python: {sys.version}')"
+          /home/headless/blender/blender --version
+          /home/headless/blender/blender --background --python-expr "import sys; print(f'Python: {sys.version}')"
 
       - name: Install Python dependencies in Blender
         run: |
-          BLENDER_PYTHON=$(blender --background --python-expr "import sys; print(sys.executable)" 2>&1 | grep -oP '/[^ ]+python[0-9.]*' | head -1)
+          BLENDER_PYTHON=$(/home/headless/blender/blender --background --python-expr "import sys; print(sys.executable)" 2>&1 | grep -oP '/[^ ]+python[0-9.]*' | head -1)
           echo "Blender Python: $BLENDER_PYTHON"
           $BLENDER_PYTHON -m pip install numpy opencv-python Pillow scipy
           $BLENDER_PYTHON -c "import numpy, cv2, PIL, scipy; print('Dependencies installed')"
@@ -82,7 +82,7 @@ jobs:
       - name: Run test suite
         run: |
           cd blender_blocking
-          blender --background --python test_runner.py
+          /home/headless/blender/blender --background --python test_runner.py
 
       - name: Upload test logs on failure
         if: failure()
@@ -106,10 +106,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          BLENDER_PYTHON=$(blender --background --python-expr "import sys; print(sys.executable)" 2>&1 | grep -oP '/[^ ]+python[0-9.]*' | head -1)
+          BLENDER_PYTHON=$(/home/headless/blender/blender --background --python-expr "import sys; print(sys.executable)" 2>&1 | grep -oP '/[^ ]+python[0-9.]*' | head -1)
           $BLENDER_PYTHON -m pip install numpy opencv-python Pillow scipy
 
       - name: Run quick tests
         run: |
           cd blender_blocking
-          blender --background --python test_runner.py -- --quick
+          /home/headless/blender/blender --background --python test_runner.py -- --quick
