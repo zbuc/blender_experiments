@@ -337,6 +337,19 @@
         async function loadResults() {
             try {
                 const indexResponse = await fetch(`${BASE_PATH}index.json`);
+
+                // Check if response is OK
+                if (!indexResponse.ok) {
+                    throw new Error(`Failed to load index.json: ${indexResponse.status} ${indexResponse.statusText}`);
+                }
+
+                // Check if response is JSON
+                const contentType = indexResponse.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    console.warn('Response is not JSON, content-type:', contentType);
+                    // Try to parse anyway
+                }
+
                 const index = await indexResponse.json();
 
                 document.getElementById('lastUpdated').textContent =
@@ -367,13 +380,33 @@
                 }
 
                 for (const testCase of index.test_cases) {
-                    const testData = await fetch(`${BASE_PATH}${testCase}.json`);
-                    const data = await testData.json();
-                    testList.appendChild(createTestCard(data));
+                    try {
+                        const testData = await fetch(`${BASE_PATH}${testCase}.json`);
+                        if (!testData.ok) {
+                            console.error(`Failed to load ${testCase}.json:`, testData.status);
+                            continue;
+                        }
+                        const data = await testData.json();
+                        testList.appendChild(createTestCard(data));
+                    } catch (err) {
+                        console.error(`Error loading test case ${testCase}:`, err);
+                        // Skip this test case and continue with others
+                    }
                 }
             } catch (error) {
+                console.error('Error loading results:', error);
                 document.getElementById('testList').innerHTML =
-                    `<div class="error">Failed to load test results: ${error.message}</div>`;
+                    `<div class="error">
+                        <strong>Failed to load test results</strong><br>
+                        ${error.message}<br><br>
+                        <small>
+                            This may occur if:<br>
+                            • The GitHub Actions workflow hasn't run yet<br>
+                            • The e2e-results directory is empty<br>
+                            • There's a CORS or network issue<br><br>
+                            Check the browser console for more details.
+                        </small>
+                    </div>`;
             }
         }
 

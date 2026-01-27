@@ -1,0 +1,55 @@
+{
+  "test_name": "vase_legacy_default",
+  "timestamp": "2026-01-27T16:37:41.994286Z",
+  "summary": {
+    "avg_iou": 0.9432,
+    "min_iou": 0.9174,
+    "max_iou": 0.9944,
+    "num_views": 3,
+    "passed": true
+  },
+  "views": {
+    "front": {
+      "iou": 0.9174,
+      "intersection": 8387,
+      "union": 9142,
+      "pixel_difference": 0.0115,
+      "images": {
+        "reference": "images/vase_legacy_default/front_reference.png",
+        "rendered": "images/vase_legacy_default/front_rendered.png"
+      }
+    },
+    "side": {
+      "iou": 0.9178,
+      "intersection": 8390,
+      "union": 9141,
+      "pixel_difference": 0.0115,
+      "images": {
+        "reference": "images/vase_legacy_default/side_reference.png",
+        "rendered": "images/vase_legacy_default/side_rendered.png"
+      }
+    },
+    "top": {
+      "iou": 0.9944,
+      "intersection": 35621,
+      "union": 35823,
+      "pixel_difference": 0.0031,
+      "images": {
+        "reference": "images/vase_legacy_default/top_reference.png",
+        "rendered": "images/vase_legacy_default/top_rendered.png"
+      }
+    }
+  },
+  "metadata": {
+    "num_slices": 120,
+    "config_label": "default",
+    "reconstruction_mode": "legacy",
+    "blender_version": "5.0.1",
+    "profile_samples": 100,
+    "radial_segments": 24,
+    "render_resolution": [
+      512,
+      512
+    ]
+  }
+}
