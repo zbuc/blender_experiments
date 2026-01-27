@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
 from pathlib import Path
+
+# Add parent directory to path for blender_blocking imports
+sys.path.insert(0, str(Path(__file__).parent))
+
+# Add ~/blender_python_packages for user-installed dependencies
+sys.path.insert(0, str(Path.home() / "blender_python_packages"))
 
 try:
     import bpy
@@ -65,7 +72,7 @@ class TestSilhouetteRendering(unittest.TestCase):
         extra.data.materials.append(mat)
 
         bounds_min, bounds_max = compute_bounds_world([target])
-        output_dir = Path("test_output/render_isolation")
+        output_dir = Path(__file__).parent / "test_output" / "render_isolation"
         output_dir.mkdir(parents=True, exist_ok=True)
 
         with silhouette_session(
@@ -118,7 +125,7 @@ class TestSilhouetteRendering(unittest.TestCase):
         obj = bpy.context.active_object
         obj.name = "TestRender_Cylinder"
 
-        output_dir = Path("test_output/render_framing")
+        output_dir = Path(__file__).parent / "test_output" / "render_framing"
         output_dir.mkdir(parents=True, exist_ok=True)
 
         outputs = render_orthogonal_views(
