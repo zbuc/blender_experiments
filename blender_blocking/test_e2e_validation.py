@@ -385,13 +385,23 @@ def test_with_sample_images(
     export_dir = base_dir.parent / "docs" / "e2e-results"
     try:
         exporter = E2EResultsExporter(export_dir)
-        test_name = f"vase_legacy_{config_label}"
+        recon_mode = (
+            validator.workflow_config.reconstruction.reconstruction_mode
+            if validator.workflow_config
+            else "legacy"
+        )
+        test_name = f"vase_{recon_mode}_{config_label}"
 
         # Get metadata
+        cfg = validator.workflow_config
         metadata = {
             "num_slices": num_slices,
             "config_label": config_label,
+            "reconstruction_mode": recon_mode,
             "blender_version": bpy.app.version_string if BLENDER_AVAILABLE else "N/A",
+            "profile_samples": cfg.profile_sampling.num_samples if cfg else None,
+            "radial_segments": cfg.mesh_from_profile.radial_segments if cfg else None,
+            "render_resolution": list(cfg.render_silhouette.resolution) if cfg else None,
         }
 
         # Export this test case
