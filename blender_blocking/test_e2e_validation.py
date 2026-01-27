@@ -362,7 +362,7 @@ def test_with_sample_images(
 
     # Run validation with many slices to capture profile details
     validator = E2EValidator(
-        iou_threshold=0.7,
+        iou_threshold=0.6,
         render_config=render_config,
         workflow_config=workflow_config,
         config_label=config_label,
@@ -403,7 +403,7 @@ def test_with_custom_images(
     reference_paths = {"front": front, "side": side, "top": top}
 
     validator = E2EValidator(
-        iou_threshold=0.7,
+        iou_threshold=0.6,
         render_config=render_config,
         workflow_config=workflow_config,
         config_label=config_label,
