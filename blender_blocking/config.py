@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple
 
+from utils.blender_version import get_eevee_engine_name
+
 
 _VALID_RECON_MODES = {"legacy", "loft_profile", "silhouette_intersection"}
 _VALID_JOIN_MODES = {"auto", "boolean", "voxel", "simple"}
@@ -13,7 +15,7 @@ _VALID_SAMPLE_POLICIES = {"endpoints", "cell_centers"}
 _VALID_FILL_STRATEGIES = {"interp_linear", "interp_nearest", "constant"}
 _VALID_CANON_ANCHORS = {"center", "bottom_center"}
 _VALID_CANON_INTERP = {"nearest"}
-_VALID_RENDER_ENGINES = {"BLENDER_EEVEE", "WORKBENCH"}
+_VALID_RENDER_ENGINES = {"BLENDER_EEVEE", "BLENDER_EEVEE_NEXT", "WORKBENCH"}
 _VALID_COLOR_MODES = {"BW", "RGBA"}
 _VALID_CONTOUR_MODES = {"external", "ccomp", "tree", "hierarchy"}
 _VALID_BOOLEAN_SOLVERS = {"auto", "EXACT", "MANIFOLD", "FLOAT", "FAST"}
@@ -124,7 +126,7 @@ class RenderConfig:
     """Configuration for rendering orthographic silhouettes."""
 
     resolution: Tuple[int, int] = (512, 512)
-    engine: str = "BLENDER_EEVEE"
+    engine: str = field(default_factory=get_eevee_engine_name)
     transparent_bg: bool = True
     samples: int = 1
     margin_frac: float = 0.08

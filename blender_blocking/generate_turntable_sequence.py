@@ -27,6 +27,7 @@ from integration.blender_ops.silhouette_render import (
     set_camera_top,
     silhouette_session,
 )
+from utils.blender_version import get_eevee_engine_name
 
 
 def clear_scene() -> None:
@@ -161,7 +162,7 @@ def generate_turntable_sequence(
         resolution=(512, 512),
         color_mode="BW",
         transparent_bg=False,
-        engine="BLENDER_EEVEE",
+        engine=get_eevee_engine_name(),
         background_color=(1.0, 1.0, 1.0, 1.0),
         silhouette_color=(0.0, 0.0, 0.0, 1.0),
     ) as session:

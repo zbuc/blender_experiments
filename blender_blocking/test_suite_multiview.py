@@ -43,6 +43,7 @@ from integration.blender_ops.silhouette_render import (
     silhouette_session,
 )
 from integration.blender_ops.raycast_utils import ray_cast_world
+from utils.blender_version import get_eevee_engine_name
 
 
 # Test suite configuration
@@ -433,7 +434,7 @@ def render_turntable(
         resolution=(resolution, resolution),
         color_mode="BW",
         transparent_bg=False,
-        engine="BLENDER_EEVEE",
+        engine=get_eevee_engine_name(),
         background_color=(1.0, 1.0, 1.0, 1.0),
         silhouette_color=(0.0, 0.0, 0.0, 1.0),
     ) as session:

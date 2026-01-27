@@ -40,6 +40,23 @@ def get_blender_version_string() -> Optional[str]:
     return bpy.app.version_string
 
 
+def get_eevee_engine_name() -> str:
+    """
+    Get the correct EEVEE engine name for the current Blender version.
+
+    Returns:
+        "BLENDER_EEVEE_NEXT" for Blender 4.2+, "BLENDER_EEVEE" for earlier versions
+    """
+    if not BLENDER_AVAILABLE:
+        return "BLENDER_EEVEE"  # Default for non-Blender context
+
+    version = bpy.app.version
+    # Blender 4.2+ uses EEVEE_NEXT, earlier versions use EEVEE
+    if version[0] >= 4 and version[1] >= 2:
+        return "BLENDER_EEVEE_NEXT"
+    return "BLENDER_EEVEE"
+
+
 def is_blender_version_at_least(major: int, minor: int = 0, patch: int = 0) -> bool:
     """
     Check if Blender version is at least the specified version.

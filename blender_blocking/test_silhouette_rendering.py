@@ -34,6 +34,7 @@ from integration.blender_ops.silhouette_render import (
     render_silhouette_frame,
     silhouette_session,
 )
+from utils.blender_version import get_eevee_engine_name
 
 
 def _load_mask(image_path: Path) -> np.ndarray:
@@ -80,7 +81,7 @@ class TestSilhouetteRendering(unittest.TestCase):
             color_mode="RGBA",
             transparent_bg=False,
             hide_non_targets=True,
-            engine="BLENDER_EEVEE",
+            engine=get_eevee_engine_name(),
         ) as session:
             configure_ortho_camera_for_view(
                 session.camera,
@@ -100,7 +101,7 @@ class TestSilhouetteRendering(unittest.TestCase):
             color_mode="RGBA",
             transparent_bg=False,
             hide_non_targets=True,
-            engine="BLENDER_EEVEE",
+            engine=get_eevee_engine_name(),
         ) as session:
             configure_ortho_camera_for_view(
                 session.camera,

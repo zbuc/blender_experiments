@@ -44,6 +44,7 @@ from blender_blocking.integration.blender_ops.render_utils import (
     render_orthogonal_views,
 )
 from blender_blocking.integration.image_processing.image_loader import load_image
+from blender_blocking.utils.blender_version import get_eevee_engine_name
 from blender_blocking.validation.silhouette_iou import (
     canonicalize_mask,
     compute_mask_iou,
@@ -101,7 +102,7 @@ class E2EValidator:
 
         # Fast rendering (we only need silhouettes)
         scene.render.engine = config.engine
-        if config.engine == "BLENDER_EEVEE" and hasattr(scene, "eevee"):
+        if config.engine in ("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT") and hasattr(scene, "eevee"):
             scene.eevee.taa_render_samples = int(config.samples)
 
     def extract_silhouette(self, image_path: str) -> np.ndarray:
@@ -484,8 +485,8 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--engine",
-        choices=("BLENDER_EEVEE", "WORKBENCH"),
-        default="BLENDER_EEVEE",
+        choices=("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT", "WORKBENCH"),
+        default=get_eevee_engine_name(),
         help="Render engine",
     )
     parser.add_argument(
