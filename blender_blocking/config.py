@@ -5,7 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple
 
-from utils.blender_version import get_eevee_engine_name
+try:
+    # Try relative import first (for package imports)
+    from .utils.blender_version import get_eevee_engine_name
+except ImportError:
+    # Fall back to direct import (for direct script execution)
+    from utils.blender_version import get_eevee_engine_name
 
 
 _VALID_RECON_MODES = {"legacy", "loft_profile", "silhouette_intersection"}
